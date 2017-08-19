@@ -5,3 +5,10 @@ We consider a robust multi-stage portfolio framework for optimising conditional 
 For large-scale scenario trees, Benders decomposition is needed. Past backtests with rival scenario trees have consistently yielded favourable results. The project will implement and test the basic model and subsequently consider its variants. 
 
 Supervised by Prof. Berc Rustem and Dr. Ruth Misener from the Imperial Department of Computing.
+
+# Repository Structure
+
+The repository is largely divided into 3 sections:
+1. **code** - consist of scripts to run the simulation.
+1. **data** - underlying test data for backtesting.
+1. **results** - output files from the scripts.
