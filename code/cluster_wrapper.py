@@ -34,4 +34,8 @@ print("Branching test.")
 # Test 4
 
 print("Commit, merge and branch to remote.")
+
+# Test 5
+
+print("Create branch and push")
 ##############################################################################
