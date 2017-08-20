@@ -26,4 +26,8 @@ print("committed")
 # Test 2
 
 print("Final.")
+
+# Test 3
+
+print("Branching test.")
 ##############################################################################
