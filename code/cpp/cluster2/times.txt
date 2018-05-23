@@ -1,0 +1,8 @@
+Depth 3, branching 2, method sequential: 	2.33 seconds
+Depth 3, branching 4, method sequential: 	7.43 seconds
+Depth 4, branching 2, method sequential: 	4.98 seconds
+Depth 4, branching 4, method sequential: 	30.15 seconds
+Depth 3, branching 2, method parallel:   	0.99 seconds
+Depth 3, branching 4, method parallel:   	1.02 seconds
+Depth 4, branching 2, method parallel:   	1.31 seconds
+Depth 4, branching 4, method parallel:   	1.4 seconds

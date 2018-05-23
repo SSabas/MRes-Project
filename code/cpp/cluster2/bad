@@ -1,0 +1,19 @@
+ASSETS 3
+STAGES 11
+COVARIANCE 
+0.01
+0       98.595
+0       1054.08   86299.5
+INITIAL
+291.38 352.25 6840.22 
+GROWTH
+0.08339208 0.10881144 0.1387248
+BRANCHING
+2 2 2 2 2 2 2 2 2 2 2
+END
+
+
+
+This data is for assets 0, 1, and 4 (cash, GB bonds, and GB Equities) from
+Matthias Denzler/UBS
+
