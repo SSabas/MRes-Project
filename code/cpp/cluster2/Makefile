@@ -40,6 +40,6 @@ pack:
 	tar czvf ../cluster.tgz *.C *.h Makefile testdata times.pl
 
 install: cluster
-	cp ./cluster /homes/reuben/bin/cluster
+	cp /Users/ssabas/Desktop/mres-project/code/cpp/cluster2/
 
 

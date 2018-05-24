@@ -73,7 +73,6 @@ def run_cluster(input_file, output_file, samples=10000):
     simulations = ' -n ' + str(samples)
     combined = inputs + outputs + simulations
 
-    clean = subprocess.Popen(['./cluster2', '-f testdata'], cwd=path)
     # Run te process
     subprocess.call('./cluster2 ' + combined, shell=True, cwd=path)
 

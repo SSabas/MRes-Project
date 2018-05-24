@@ -106,15 +106,21 @@ def calculate_moments(exp_function, data, to_plot='no'):
 
 
 # Output in format required for C++ simulation
-def cpp_layout(path, data, exp_function, branching=(4, 4, 4)):
+def cpp_layout(file_name, data, exp_function, branching=(4, 4, 4)):
+
+    # Set path
+    path = os.getcwd() + '/code/cpp/cluster2/' + file_name
 
     # Get means and variances
     mean_matrix, variance_matrix = calculate_moments(exp_function, data)
 
+    # Save to designated file in cpp folder
+    print('Saving file name - %s -  in /code/cpp/cluster2 folder.' %file_name)
+
     with open(path, "w") as text_file:
         print("ASSETS %d" %(data.shape[1]), file=text_file)
         print("STAGES %d" %(len(branching)), file=text_file)
-        print("COVARIANCES", file=text_file)
+        print("COVARIANCE", file=text_file)
         n = 1
         for i in variance_matrix:
             print(" ".join(map(str, i[0:n])), file=text_file)
@@ -126,9 +132,6 @@ def cpp_layout(path, data, exp_function, branching=(4, 4, 4)):
         print("BRANCHING", file=text_file)
         print(" ".join(map(str, branching)), file=text_file)
         print("END", file=text_file)
-
-# path = os.getcwd() + "/code/cpp/cluster2/sven_test.txt"
-# cpp_layout(path, data, exp_function, branching=(4, 4, 4))
 
 ####################### END ########################
 
