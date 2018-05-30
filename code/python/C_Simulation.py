@@ -26,6 +26,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import subprocess
+from functools import reduce
 
 # -------------------- PYTHON WRAPPER FOR CLUSTER MODULE ----------------------------- #
 
@@ -101,5 +102,46 @@ def read_cluster_output(output_file, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')
     scenarios_df.columns = np.array(['node', 'probability', *asset_names])
 
     return scenarios_df
+
+def plot_cluster_output(data, instrument, scenarios, branching):
+
+    # Define dataframe size
+    forecast_steps = len(branching)
+    final_scenarios = reduce(lambda x, y: x*y, branching)
+    start_values =
+
+
+    # Define the dataframe to be populated
+    output = pd.DataFrame(np.random.randint(low=1, high=10, size=(final_scenarios, forecast_steps+1)))
+    output[0] = list(scenarios[-final_scenarios:]['node'])
+    output.index = scenarios[-final_scenarios:]['node']
+
+    # Change the column names
+    # names = list(output.columns.values)
+    # names[0] = 'node'
+    # output.columns = names
+    output['probability'] = 1
+
+    for row in range(final_scenarios):
+        print(row)
+
+        branch = output.iloc[[row]][0][0]
+        print(branch)
+
+
+        for i in range(1, forecast_steps+1):
+            print(i)
+            output.loc[branch, i] = scenarios.loc[scenarios['node'] == branch[0:i]][instrument][0]
+            output.loc[branch, 'probability'] = output.loc[branch, 'probability'] * float(scenarios.loc[scenarios['node'] == branch[0:i]]['probability'][0])
+
+    return output
+
+
+
+
+
+
+        print(row)
+
 
 ####################### END ########################
