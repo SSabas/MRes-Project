@@ -48,7 +48,7 @@ def fit_exp_function(exp_function, data, to_plot='yes'):
     # Plot the results
     if to_plot == 'yes':
         plt.plot(data.index, ydata, 'b-', label='Data')
-        plt.plot(data.index, exp_function(xdata, *parameters), 'r-', label='Fit: a=%5.3f, b=%5.3f' % tuple(popt))
+        plt.plot(data.index, exp_function(xdata, *parameters), 'r-', label='Fit: a=%5.3f, b=%5.3f' % tuple(parameters))
         plt.xlabel('x')
         plt.ylabel('y')
         plt.legend()
@@ -60,8 +60,47 @@ def fit_exp_function(exp_function, data, to_plot='yes'):
     return residuals, parameters
 
 
+# Fit the curve and get the residuals
+def exponential_growth(data, to_plot='yes'):
+
+    # Define functions
+    def log_function(x, a, b):
+        return np.log(a) + b * x
+
+    def exp_function(x, a, b):
+        return a * np.exp(b * x)
+
+    # Extract relevant series
+    ydata = np.log(np.array(data))
+    xdata = range(1, len(ydata)+1)
+
+    # Fit the curve (extract the parameters a and b)
+    parameters, parameters_cov = curve_fit(log_function, xdata, ydata)
+
+    # Calculate thep arameters based on least squares
+    parameters = np.array([0.0, 0.0])
+    parameters[1] = np.cov(ydata, xdata)[0][1] / np.cov(ydata, xdata)[1][1]
+    parameters[0] = np.exp(np.mean(np.log(data)) - parameters[1]*np.mean(xdata))
+
+    # Plot the results
+    if to_plot == 'yes':
+        plt.style.use("seaborn-darkgrid")
+        plt.plot(data.index, np.array(data), 'b-', label='Data')
+        plt.plot(data.index, exp_function(xdata, *parameters), 'r-', label='Fit: a=%5.2f, b=%5.2f' % tuple(parameters))
+        plt.ylabel('Price ($)')
+        plt.xlabel('Date')
+        plt.title('Time-series of %s with Exponential Fit' %data.name)
+        plt.legend()
+        plt.show()
+
+    # Get the residuals
+    residuals = ydata - exp_function(xdata, *parameters)
+
+    return residuals, parameters
+
+
 # Calculate the moments for scenario simulation
-def calculate_moments(exp_function, data, to_plot='no'):
+def calculate_moments(data, to_plot='no'):
 
     # Dictionary placeholders
     means = {}
@@ -72,8 +111,8 @@ def calculate_moments(exp_function, data, to_plot='no'):
         print(column)
 
         price_series = data[column]
-        residuals, parameters = fit_exp_function(exp_function, price_series, to_plot=to_plot)
-        means[column] = -parameters[1]
+        residuals, parameters = exponential_growth(price_series, to_plot=to_plot)
+        means[column] = parameters[1]
 
     # Calculate the (co-)variances
     for column_j in data:
@@ -102,20 +141,18 @@ def calculate_moments(exp_function, data, to_plot='no'):
 
     return mean_matrix, variance_matrix
 
-#calculate_moments(exp_function, data)
-
 
 # Output in format required for C++ simulation
-def cpp_layout(file_name, data, exp_function, branching=(4, 4, 4)):
+def cpp_layout(file_name, data, branching=(4, 4, 4)):
 
     # Set path
     path = os.getcwd() + '/code/cpp/cluster2/' + file_name
 
     # Get means and variances
-    mean_matrix, variance_matrix = calculate_moments(exp_function, data)
+    mean_matrix, variance_matrix = calculate_moments(data)
 
     # Save to designated file in cpp folder
-    print('Saving file name - %s -  in /code/cpp/cluster2 folder.' %file_name)
+    print('Saving file named - %s -  in /code/cpp/cluster2 folder.' %file_name)
 
     with open(path, "w") as text_file:
         print("ASSETS %d" %(data.shape[1]), file=text_file)
