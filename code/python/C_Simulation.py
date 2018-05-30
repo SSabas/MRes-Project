@@ -76,4 +76,30 @@ def run_cluster(input_file, output_file, samples=10000):
     # Run te process
     subprocess.call('./cluster2 ' + combined, shell=True, cwd=path)
 
+
+def read_cluster_output(output_file, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')):
+
+    # Complete the path
+    path = os.getcwd() + '/code/cpp/cluster2/' + output_file
+
+    # Extract the content
+    makefile = open(path, "r")
+    lines = makefile.readlines()
+    makefile.close()
+
+    # Get how many assets are
+    assets = int(lines[1][7])  # Hence would ignore 4 + (N*N-N)/2 + N + 1 lines in the beginning
+
+    # Get the scenarios
+    begin = int(4 + (assets*assets-assets)/2 + assets + 1)
+    end = len(lines) - 6
+    scenarios = lines[begin:end]
+
+    # Extract the scenarios and format the output
+    scenarios_list = list([line.replace('\t', ' ').replace(' \n', '').split(' ') for line in scenarios])
+    scenarios_df = pd.DataFrame(scenarios_list)
+    scenarios_df.columns = np.array(['node', 'probability', *asset_names])
+
+    return scenarios_df
+
 ####################### END ########################
