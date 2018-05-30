@@ -44,27 +44,42 @@ from C_Simulation import *
 
 input_file = 'inputs'
 output_file = 'outputs'
-samples = 50000
-branching = (4, 4, 4)
+samples = 500
+branching = (2,2)
+instruments = ('KO', 'MSFT', 'IBM', 'AXP', 'PG')
+start_date = '2016-01-01'
+end_date = '2018-01-01'
+source = 'morningstar'
+price_point = 'Close'
+to_plot = 'yes'
 
 # -------------------- EXECUTING C++ CODE THROUGH PYTHON ----------------------------- #
 
 # Get the data
-stock_data = import_data(instrument_type='stocks', instruments=['ko', 'f', 'ibm', 'axp', 'pg'],
-                         random='no', price='Close', number=5, random_seed=500, remove_NA='yes',
-                         to_plot='yes')
+stock_data = import_stock_data_API(instruments=instruments, data_source= source,
+                                   start_date= start_date, end_date=end_date, price_point=price_point,
+                                   to_plot=to_plot)  # Takes c. 20 secs to query
+
+# Teat exponential fit for a single stock
+residuals, parameters = exponential_growth(stock_data['AXP'], to_plot=to_plot)
+
+# Test moment-calculation
+means, variances = calculate_moments(stock_data)
 
 # Get the moments and save to format for the simulator
-cpp_layout(input_file, stock_data, exp_function, branching=branching) # Exponential function comes
-# from B_Moment_Estimation script
+cpp_layout(input_file, stock_data, branching=branching)
 
 # Run the simulation
 clean_cluster()
-compile_cluster()
+compile_cluster() # Gives some errors, but still works
 run_cluster(input_file, output_file, samples=samples)
 
 # Use different branching
-branching = (10,10,10)
-samples = 100000
-cpp_layout(input_file, stock_data, exp_function, branching=branching)
-run_cluster(input_file, output_file, samples=samples)
+# branching = (10,10,10)
+# samples = 100000
+# cpp_layout(input_file, stock_data, exp_function, branching=branching)
+# run_cluster(input_file, output_file, samples=samples)
+
+# Read the output
+pd.set_option('display.max_columns', 10)
+scenarios = read_cluster_output(output_file, asset_names=instruments)
