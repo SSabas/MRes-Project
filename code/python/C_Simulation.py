@@ -27,6 +27,7 @@ import os
 import matplotlib.pyplot as plt
 import subprocess
 from functools import reduce
+from matplotlib.ticker import MaxNLocator
 
 # -------------------- PYTHON WRAPPER FOR CLUSTER MODULE ----------------------------- #
 
@@ -103,13 +104,12 @@ def read_cluster_output(output_file, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')
 
     return scenarios_df
 
+
 def plot_cluster_output(data, instrument, scenarios, branching):
 
     # Define dataframe size
     forecast_steps = len(branching)
     final_scenarios = reduce(lambda x, y: x*y, branching)
-    start_values =
-
 
     # Define the dataframe to be populated
     output = pd.DataFrame(np.random.randint(low=1, high=10, size=(final_scenarios, forecast_steps+1)))
@@ -123,25 +123,35 @@ def plot_cluster_output(data, instrument, scenarios, branching):
     output['probability'] = 1
 
     for row in range(final_scenarios):
-        print(row)
+        # print(row)
 
         branch = output.iloc[[row]][0][0]
-        print(branch)
-
+        # print(branch)
 
         for i in range(1, forecast_steps+1):
-            print(i)
-            output.loc[branch, i] = scenarios.loc[scenarios['node'] == branch[0:i]][instrument][0]
-            output.loc[branch, 'probability'] = output.loc[branch, 'probability'] * float(scenarios.loc[scenarios['node'] == branch[0:i]]['probability'][0])
+            # print(i)
+            output.loc[branch, i] = float(scenarios.loc[scenarios['node'] == branch[0:i]][instrument])
+            output.loc[branch, 'probability'] = output.loc[branch, 'probability'] * float(scenarios.loc[scenarios['node'] == branch[0:i]]['probability'])
 
-    return output
+    # Put to plottable format
+    output_plot = output.T
+
+    # Change the first row to 0th time period price
+    output_plot.iloc[[0]] = data.tail(1)[instrument][0]
+
+    # Drop the last row and give cumulative sum
+    output_plot = output_plot[:-1]
+    output_cumsum = output_plot.astype(float).cumsum()
 
 
+    # Plot
+    plt.style.use("seaborn-darkgrid")
+    plot_title = ('Time-series of %s Stock Price Simulation' %instrument)
+    ax = output_cumsum.plot(legend=False, title=plot_title, colormap='ocean')
+    ax.set_xlabel("Forecast Step")
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.set_ylabel("Price ($)")
 
-
-
-
-        print(row)
-
+    return output, output_plot
 
 ####################### END ########################
