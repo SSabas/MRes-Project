@@ -23,70 +23,114 @@ Date:
 
 import cplex
 import numpy as np
+from operator import mul
 
 # ------------------------------ DEFINE THE PROGRAM ------------------------------- #
 
-# Simple VAR minimisation with scenario trees (using only the end of the scenarios, not intermediate results)
-min_var = cplex.Cplex()
+# Implementation of simple CVaR optimiser
+def CVaR_optimiser(data, scenarios, scenarios_cum, instruments, branching, return_target=0.0003594170240829454,
+                   beta=0.95):
 
-# Set as minimisation problem
-min_var.objective.set_sense(min_var.objective.sense.minimize)
+    # Simple VAR minimisation with scenario trees (using only the end of the scenarios, not intermediate results)
+    min_var = cplex.Cplex()
 
-#### VARIABLES ####
+    # Set as minimisation problem
+    min_var.objective.set_sense(min_var.objective.sense.minimize)
 
-# Define variables - weights for all assets, z variable for all scenarios and alpha (VaR)
-alpha = 'alpha'
-z = ["z_"+str(i) for i in range(output.shape[0])]
-assets = ["x_"+str(i) for i in instruments]
-variables = list([alpha, *z, *assets])
+    #### VARIABLES ####
 
-# Set bounds
-lower_bounds = np.repeat(0.0, len(variables))
+    # Define variables - weights for all assets, z variable for all scenarios and alpha (VaR)
+    alpha = 'alpha'
+    nr_scenarios = reduce(mul, branching, 1)
+    z = ["z_"+str(i) for i in range(nr_scenarios)]
+    assets = ["x_"+str(i) for i in instruments]
+    variables = list([alpha, *z, *assets])
 
-# # Add alpha
-# min_var.variables.add(names=['alpha'])
-#
-# # Add z's
-# min_var.variables.add(names= ["z"+str(i) for i in range(output.shape[0])])
-#
-# # Add asset weights
-# min_var.variables.add(names= instruments)
+    # Set bounds
+    lower_bounds = np.repeat(0.0, len(variables))
 
-#### OBJECTIVE FUNCTION ####
-beta = 0.95
-# num_decision_var = variables.shape[0] + 1
-probabilities = np.array(output['probability'])*(1/(1-beta))
-asset_weights = np.repeat(0., len(assets))
-c = list([1, *probabilities, *asset_weights])
+    # # Add alpha
+    # min_var.variables.add(names=['alpha'])
+    #
+    # # Add z's
+    # min_var.variables.add(names= ["z"+str(i) for i in range(output.shape[0])])
+    #
+    # # Add asset weights
+    # min_var.variables.add(names= instruments)
 
-# Define variables and objective function
-min_var.variables.add(lb = lower_bounds,
-                      names = variables,
-                      obj = c)
+    #### OBJECTIVE FUNCTION ####
+    probabilities = np.array(scenarios[instruments[1]]['probability'])*(1/(1-beta))
+    asset_weights = np.repeat(0., len(assets))
+    c = list([1, *probabilities, *asset_weights])
 
-# for i in range(num_decision_var):
-#     min_var.objective.set_linear([(i, c[i])])
+    # Define variables and objective function
+    min_var.variables.add(lb = lower_bounds,
+                          names = variables,
+                          obj = c)
 
-#### CONSTRAINTS ####
+    # for i in range(num_decision_var):
+    #     min_var.objective.set_linear([(i, c[i])])
 
-# Add budget (weight) constraint
-weight_constraint_parameters = list([*np.repeat(1.0, len(asset_weights))])
-min_var.linear_constraints.add(lin_expr = [cplex.SparsePair(ind= assets, val= weight_constraint_parameters)],
-                               senses = ["E"],
-                               rhs = [1.0],
-                               names = ['weight_constraint'])
+    #### CONSTRAINTS ####
 
-# Add minimum return threshold
-# Get the percentage change
-stock_data_pc = stock_data/stock_data.shift(1)-1
-means = list(stock_data_pc.mean()*1000)
-instruments = ["x_"+str(i) for i in instruments]
-min_var.linear_constraints.add(lin_expr = [cplex.SparsePair(ind= instruments, val= means)],
-                               senses = ["G"],
-                               rhs = [0.3],
-                               names = ['second'])
+    # Add budget (weight) constraint
+    weight_constraint_parameters = list([*np.repeat(1.0, len(asset_weights))])
+    min_var.linear_constraints.add(lin_expr = [cplex.SparsePair(ind= assets, val= weight_constraint_parameters)],
+                                   senses = ["E"],
+                                   rhs = [1.0],
+                                   names = ['weight_constraint'])
 
-#  CVaR needs to exceed VaR
+    # Add minimum return threshold
+    # Get the percentage change
+    stock_data_pc = data/data.shift(1)-1
+    means = list(stock_data_pc.mean())
+    instrument_variables = ["x_"+str(i) for i in instruments]
+    min_var.linear_constraints.add(lin_expr = [cplex.SparsePair(ind= instrument_variables, val= means)],
+                                   senses = ["G"],
+                                   rhs = [return_target],
+                                   names = ['second'])
+
+    #  CVaR needs to exceed VaR
+    # Iterate over scenarios and construct constraint for each scenario
+    for i in range(nr_scenarios):
+        # print(i)
+
+        returns = []
+        # Get loss for each instrument
+        for instrument in instruments:
+            # print(instrument)
+            loss = scenarios_cum[instrument].iloc[-1, :] / scenarios_cum[instrument].iloc[0, :] - 1
+            returns.append(loss[i])
+
+        losses = np.array(returns) * -1
+        instrument_variables = ["x_" + str(i) for i in instruments]
+        variable_index = ["z_" + str(i), *instrument_variables, alpha]
+        coefficients = [1, *(losses), 1]
+
+        # Add constraint
+        min_var.linear_constraints.add(
+            lin_expr= [cplex.SparsePair(ind= variable_index, val= coefficients)],
+            rhs= [0],
+            names = ["scenario_" + str(i)],
+            senses = ["G"])
+
+
+    # Run the solver
+    min_var.solve()
+    # min_var.variables.get_names()
+    # print(min_var.solution.get_values())
+
+    # Calculate CVaR
+    CVaR = np.sum(np.array(c) * np.array(min_var.solution.get_values()))
+
+    return CVaR, min_var.solution.get_values(), c
+
+
+
+
+
+
+
 
 
 
@@ -233,6 +277,8 @@ problem.solve()
 
 # And print the solutions
 print(problem.solution.get_values())
+
+
 
 
 ###################################
