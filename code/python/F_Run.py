@@ -44,9 +44,9 @@ from C_Simulation import *
 
 input_file = 'inputs'
 output_file = 'outputs'
-samples = 500
-branching = (2,2)
-instruments = ('KO', 'MSFT', 'IBM', 'AXP', 'PG')
+samples = 1000000
+branching = (10,10,10,10)
+instruments = ['KO', 'MSFT', 'IBM', 'AXP', 'PG']
 start_date = '2016-01-01'
 end_date = '2018-01-01'
 source = 'morningstar'
@@ -83,3 +83,25 @@ run_cluster(input_file, output_file, samples=samples)
 # Read the output
 pd.set_option('display.max_columns', 10)
 scenarios = read_cluster_output(output_file, asset_names=instruments)
+
+# Plot the simulation output for sense-checking
+output = {}
+output_cum = {}
+for i in instruments:
+    print(i)
+    output[i], output_cum[i] = format_cluster_output(stock_data, i, scenarios, branching, to_plot='yes')
+
+# Test simple CVaR optimiser
+# means = np.linspace(0.0002, 0.0006, 10)
+# CVaRs = []
+# for i in means:
+#
+#     CVaR, variables, objective_function, model = CVaR_optimiser(stock_data, output, output_cum, instruments, branching,
+#                                                                 return_target=i, beta=0.95)
+#     CVaRs.append(CVaR)
+#
+# plt.plot(means, CVaRs)
+# model.write("model.lp");
+CVaR, variables, objective_function, model = CVaR_optimiser(stock_data, output, output_cum, instruments, branching,
+                                                            return_target=0.0002594170240829454, beta=0.95)
+
