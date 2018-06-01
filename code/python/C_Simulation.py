@@ -105,7 +105,7 @@ def read_cluster_output(output_file, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')
     return scenarios_df
 
 
-def plot_cluster_output(data, instrument, scenarios, branching):
+def format_cluster_output(data, instrument, scenarios, branching, to_plot='yes'):
 
     # Define dataframe size
     forecast_steps = len(branching)
@@ -141,17 +141,18 @@ def plot_cluster_output(data, instrument, scenarios, branching):
 
     # Drop the last row and give cumulative sum
     output_plot = output_plot[:-1]
-    output_cumsum = output_plot.astype(float).cumsum()
+    output_cum = output_plot.astype(float).cumprod()
 
 
     # Plot
-    plt.style.use("seaborn-darkgrid")
-    plot_title = ('Time-series of %s Stock Price Simulation' %instrument)
-    ax = output_cumsum.plot(legend=False, title=plot_title, colormap='ocean')
-    ax.set_xlabel("Forecast Step")
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax.set_ylabel("Price ($)")
+    if to_plot == 'yes':
+        plt.style.use("seaborn-darkgrid")
+        plot_title = ('Time-series of %s Stock Price Simulation' %instrument)
+        ax = output_cum.plot(legend=False, title=plot_title, colormap='ocean')
+        ax.set_xlabel("Forecast Step")
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.set_ylabel("Price ($)")
 
-    return output, output_plot
+    return output, output_cum
 
 ####################### END ########################
