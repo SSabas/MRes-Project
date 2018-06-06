@@ -24,6 +24,7 @@ Date:
 import cplex
 import numpy as np
 from operator import mul
+from functools import reduce
 
 # ------------------------------ DEFINE THE PROGRAM ------------------------------- #
 
@@ -124,6 +125,11 @@ def CVaR_optimiser(data, scenarios, scenarios_cum, instruments, branching, retur
     CVaR = np.sum(np.array(c) * np.array(min_var.solution.get_values()))
 
     return CVaR, min_var.solution.get_values(), c, min_var
+
+
+# def robust_CVaR_optimiser():
+
+
 
 
 
