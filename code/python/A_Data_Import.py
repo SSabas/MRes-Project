@@ -133,7 +133,7 @@ def get_SP500_tickers():
 
 
 # From Google through API
-def import_stock_data_API(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
+def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
                           start_date= '1980-01-01', end_date='2018-01-01', price_point='Close',
                           random='no', number=10, random_seed=500, to_plot='yes'):
 
