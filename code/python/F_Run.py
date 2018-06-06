@@ -38,6 +38,7 @@ sys.path.insert(0, os.getcwd() + '/code/python')
 from A_Data_Import import *
 from B_Moment_Estimation import *
 from C_Simulation import *
+from D_CPLEX_Solver import *
 
 
 # -------------------- VARIABLES ----------------------------------------------------- #
@@ -45,7 +46,7 @@ from C_Simulation import *
 input_file = 'inputs'
 output_file = 'outputs'
 samples = 1000000
-branching = (10,10,10,10)
+branching = (6,4,2)
 instruments = ['KO', 'MSFT', 'IBM', 'AXP', 'PG']
 start_date = '2016-01-01'
 end_date = '2018-01-01'
