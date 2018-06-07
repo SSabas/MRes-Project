@@ -155,4 +155,49 @@ def format_cluster_output(data, instrument, scenarios, branching, to_plot='yes')
 
     return output, output_cum
 
+
+def cluster_output_modifier(instruments, scenarios, branching):
+
+    # Define dataframe size
+    forecast_steps = len(branching)
+    nr_scenarios = reduce(lambda x, y: x*y, branching[1:])
+    nr_trees = branching[0]
+
+    # Allocate the scenarios to trees based on the first branching layer and separate the assets
+    scenario_dict = {}
+    for k in range(nr_trees):
+        # print(k)
+        k_tree_data = scenarios.loc[scenarios.node.str[0].eq(str(i))] # Gets the data specific to the tree
+
+        instrument_dict = {}
+        for instrument in instruments:
+            # print(instrument)
+
+            output = pd.DataFrame(np.random.randint(low=1, high=10, size=(nr_scenarios, forecast_steps + 1)))
+            output[0] = list(k_tree_data[-nr_scenarios:]['node'])
+            output.index = k_tree_data[-nr_scenarios:]['node']
+
+            output['probability'] = 1
+
+            for s in range(nr_scenarios):
+                # print(row)
+
+                branch = output.iloc[[s]][0][0]
+                # print(branch)
+
+                for t in range(1, forecast_steps+1):
+                    # print(i)
+                    output.loc[branch, t] = float(k_tree_data.loc[scenarios['node'] == branch[0:t]][instrument])
+                    output.loc[branch, 'probability'] = output.loc[branch, 'probability'] * float(k_tree_data.loc[k_tree_data['node'] == branch[0:t]]['probability'])
+
+            # Amend the column names
+            output.columns = ['node', *range(1, forecast_steps+1), 'probability']
+
+            # Add to the instruments dictionary
+            instrument_dict[instrument] = output
+
+        scenario_dict[str(k)] = instrument_dict
+
+    return scenario_dict
+
 ####################### END ########################
