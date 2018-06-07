@@ -188,9 +188,9 @@ def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, in
     # For each asset a separate row is needed for t=0 weight
     for i, j in zip(instruments, range(len(instruments))):
         print(i,j)
-        asset = 'w_0_' + i
-        to_buy = 'b_0_' + i
-        to_sell = 's_0_' + i
+        asset = 'w_t0_' + i
+        to_buy = 'b_t0_' + i
+        to_sell = 's_t0_' + i
         w_0_variables = [asset, to_buy, to_sell]
         w_0_values = [1.0, -(1.0-cost_to_buy), 1.0-cost_to_sell]
         min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=w_0_variables, val=w_0_values)],
@@ -199,8 +199,8 @@ def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, in
                                          names=[asset])
 
     # Normalise weights to 1 at t=0
-    asset_buys = ["b_" + str(0) + "_" + str(j) for j in instruments]
-    asset_sells = ["s_" + str(0) + "_" + str(j) for j in instruments]
+    asset_buys = ["b_t0" + "_" + str(j) for j in instruments]
+    asset_sells = ["s_t0" + "_" + str(j) for j in instruments]
     w_0_variables = [*asset_buys, *asset_sells]
     w_0_values = [*np.repeat(1.0, len(asset_buys)), *np.repeat(-1.0, len(asset_sells))]
     min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=w_0_variables, val=w_0_values)],
@@ -210,6 +210,30 @@ def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, in
 
     ### Constraints for the intermediate periods t = 1, ...., T-1
     # Weights constraint, taking into account the return
+    for k in range(nr_trees):
+        print(k)
+        return_data = forecast_scenarios[str(k)]
+
+        for instrument in instruments:
+            print(instrument)
+
+            asset_data = return_data[instrument]
+
+            for t in range(1, nr_time_periods - 1):
+                print(t)
+
+            # Get variables and corresponding parameters for every set of scenarios
+
+            constraint_variables = []
+
+            # Use the data now to build the 2 sets of constraints - return and budget
+
+
+
+
+
+
+
 
 
     # Add budget (weight) constraint
