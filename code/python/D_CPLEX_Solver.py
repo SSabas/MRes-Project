@@ -148,11 +148,20 @@ def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, in
     # Define variables - weights for all assets, z variable for all scenarios and var
     wcvar = 'wcvar'
     var = 'var'
-    z = ["z_" + str(i) + "_" + str(j) for i in range(nr_trees) for j in range(nr_scenarios)] #
-    assets_weights = ["w_" + str(i) + "_" + str(j) for j in instruments for i in range(nr_time_periods)]
-    asset_buys = ["b_" + str(i) + "_" + str(j) for j in instruments for i in range(nr_time_periods-1)]
-    asset_sells = ["s_" + str(i) + "_" + str(j) for j in instruments for i in range(nr_time_periods-1)]
-    all_variables = list([wcvar, var, *z, *assets_weights, *asset_buys, *asset_sells])
+
+    # For period t=0 (same for all scenarios)
+    w0_asset_weights = ["w_t0_" + str(j) for j in instruments]
+    w0_asset_buys = ["b_t0_" + str(j) for j in instruments]
+    w0_asset_sells = ["s_t0_" + str(j) for j in instruments]
+    w0_all_variables = [*w0_asset_weights, *w0_asset_buys, *w0_asset_sells]
+
+    # For periods t= 1, ..., T-1
+    z = ["z_k" + str(i) + "_s" + str(j) for i in range(nr_trees) for j in range(nr_scenarios)] #
+    asset_weights = ["w_k" + str(k) + "_" + str(i) + "_t" + str(t)  for k in range(nr_trees) for i in instruments for t in range(1, nr_time_periods-1)]
+    asset_buys = ["b_k" + str(k) + "_" + str(i) + "_t" + str(t)  for k in range(nr_trees) for i in instruments for t in range(1, nr_time_periods-1)]
+    asset_sells = ["w_k" + str(k) + "_" + str(i) + "_t" + str(t)  for k in range(nr_trees) for i in instruments for t in range(1, nr_time_periods-1)]
+    all_variables = list([wcvar, var, *z, *w0_asset_weights, *assets_weights,
+                          *w0_asset_buys, *asset_buys, *w0_asset_sells, *asset_sells])
 
     # Set bounds for variables
     wcvar_bounds =  [[-cplex.infinity], [cplex.infinity]]
