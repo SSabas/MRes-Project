@@ -29,7 +29,7 @@ from functools import reduce
 # ------------------------------ DEFINE THE PROGRAM ------------------------------- #
 
 # Implementation of simple CVaR optimiser
-def CVaR_optimiser(data, scenarios, scenarios_cum, instruments, branching, return_target=0.0003594170240829454,
+def cvar_optimiser(data, scenarios, scenarios_cum, instruments, branching, return_target=0.0003594170240829454,
                    beta=0.95):
 
     # Simple VAR minimisation with scenario trees (using only the end of the scenarios, not intermediate results)
@@ -127,9 +127,88 @@ def CVaR_optimiser(data, scenarios, scenarios_cum, instruments, branching, retur
     return CVaR, min_var.solution.get_values(), c, min_var
 
 
-# def robust_CVaR_optimiser():
+def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, instruments, branching,
+                          initial_portfolio, market_benchmark, return_target=0.0003594170240829454,
+                          sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
+                          beta=0.95):
+
+    # Initialise the object
+    min_wcvar = cplex.Cplex()
+
+    # Set as minimisation problem
+    min_wcvar.objective.set_sense(min_wcvar.objective.sense.minimize)
+
+    # Get quantities required to define variables
+    nr_trees = branching[0] # K variable in the model
+    nr_time_periods = len(branching)+1  # Includes first time period (t=0)
+    nr_scenarios = reduce(mul, branching[1:], 1) # S variable in the model
+
+    #### VARIABLES ####
+
+    # Define variables - weights for all assets, z variable for all scenarios and var
+    wcvar = 'wcvar'
+    var = 'var'
+    z = ["z_" + str(i) + "_" + str(j) for i in range(nr_trees) for j in range(nr_scenarios)] #
+    assets_weights = ["w_" + str(i) + "_" + str(j) for j in instruments for i in range(nr_time_periods)]
+    asset_buys = ["b_" + str(i) + "_" + str(j) for j in instruments for i in range(nr_time_periods-1)]
+    asset_sells = ["s_" + str(i) + "_" + str(j) for j in instruments for i in range(nr_time_periods-1)]
+    all_variables = list([wcvar, var, *z, *assets_weights, *asset_buys, *asset_sells])
+
+    # Set bounds for variables
+    wcvar_bounds =  [[-cplex.infinity], [cplex.infinity]]
+    var_bounds =  [[0.0], [cplex.infinity]]
+    z_bounds = [np.repeat(0.0,len(z)), np.repeat(1e20, len(z))]
+    all_lower_bounds = list([*wcvar_bounds[0], *var_bounds[0], *z_bounds[0],
+                             *weight_bounds[0], *buy_bounds[0], *sell_bounds[0]])
+    all_upper_bounds = list([*wcvar_bounds[1], *var_bounds[1], *z_bounds[1],
+                             *weight_bounds[1], *buy_bounds[1], *sell_bounds[1]])
+
+    #### OBJECTIVE FUNCTION ####
+    objective_function = list([1.0, *np.repeat(0.0, len(all_variables)-1)])
+
+    # Define variables and objective function
+    min_wcvar.variables.add(names = all_variables,
+                            obj = objective_function,
+                            lb = all_lower_bounds,
+                            ub = all_upper_bounds)
 
 
+    #### CONSTRAINTS ####
+
+    ### Period t=0 constraints
+    # For each asset a separate row is needed for t=0 weight
+    for i, j in zip(instruments, range(len(instruments))):
+        print(i,j)
+        asset = 'w_0_' + i
+        to_buy = 'b_0_' + i
+        to_sell = 's_0_' + i
+        w_0_variables = [asset, to_buy, to_sell]
+        w_0_values = [1.0, -(1.0-cost_to_buy), 1.0-cost_to_sell]
+        min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=w_0_variables, val=w_0_values)],
+                                         senses=["E"],
+                                         rhs=[initial_portfolio[j]],
+                                         names=[asset])
+
+    # Normalise weights to 1 at t=0
+    asset_buys = ["b_" + str(0) + "_" + str(j) for j in instruments]
+    asset_sells = ["s_" + str(0) + "_" + str(j) for j in instruments]
+    w_0_variables = [*asset_buys, *asset_sells]
+    w_0_values = [*np.repeat(1.0, len(asset_buys)), *np.repeat(-1.0, len(asset_sells))]
+    min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=w_0_variables, val=w_0_values)],
+                                     senses=["E"],
+                                     rhs=[1.0-np.sum(initial_portfolio)],
+                                     names=["w_0_balance_constraint"])
+
+    ### Constraints for the intermediate periods t = 1, ...., T-1
+    # Weights constraint, taking into account the return
+
+
+    # Add budget (weight) constraint
+    weight_constraint_parameters = list([*np.repeat(1.0, len(asset_weights))])
+    min_var.linear_constraints.add(lin_expr = [cplex.SparsePair(ind= assets, val= weight_constraint_parameters)],
+                                   senses = ["E"],
+                                   rhs = [1.0],
+                                   names = ['weight_constraint'])
 
 
 
