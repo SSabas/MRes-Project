@@ -130,7 +130,7 @@ def cvar_optimiser(data, scenarios, scenarios_cum, instruments, branching, retur
 def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, instruments, branching,
                           initial_portfolio, market_benchmark, return_target=0.0003594170240829454,
                           sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                          beta=0.95):
+                          beta=0.95, initial_wealth=1):
 
     # Initialise the object
     min_wcvar = cplex.Cplex()
@@ -286,8 +286,27 @@ def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, in
         for s in range(nr_scenarios):
             print(s)
 
-            z_constraint_variables = []
-            z_constraint_parameters = []
+            z = "z_k" + str(k) + "_s" + str(s)
+            z_constraint_variables = [z]
+            z_constraint_parameters = [1.0]
+
+            for instrument in instruments:
+
+                z_constraint_variables.append(*['w_k' + str(k) + "_" + instrument + "_t" + str(nr_time_periods - 2) + "_s" + str(s)])
+                z_constraint_parameters.append(*[forecast_scenarios[str(k)][instrument][s:s+1][nr_time_periods - 1][0]*initial_wealth])
+
+            z_constraint_variables.append(*['var'])
+            z_constraint_parameters.append(*[1.0])
+
+            min_wcvar.linear_constraints.add(
+                lin_expr=[cplex.SparsePair(ind=wcvar_constraint_variables, val=wcvar_contraint_parameters)],
+                senses=["G"],
+                rhs=[initial_wealth],
+                names=[z+ "_constraint"])
+
+    # Return
+
+        ##### CONTINUE FROM HERE ##########
 
 
         wcvar_constraint_variables = ['wcvar', 'var',
