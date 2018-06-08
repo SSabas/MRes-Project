@@ -30,6 +30,7 @@ import subprocess
 from scipy.optimize import curve_fit
 from datetime import timedelta
 import sys
+from functools import reduce
 
 
 # Add the python scripts folder to system path
@@ -53,11 +54,18 @@ end_date = '2018-01-01'
 source = 'morningstar'
 price_point = 'Close'
 to_plot = 'yes'
+initial_portfolio = np.repeat(1/len(instruments), len(instruments)) # Equally weighted portfolio
+
+# Bounds for optimisation
+nr_unique = len(instruments) + (len(branching)-1) * len(instruments) * branching[0] * reduce(mul, branching[1:], 1) # Number of unique indices for decision variables
+sell_bounds = [np.repeat(0.0, nr_unique), np.repeat(0.0, nr_unique)] # Excludes the last period
+buy_bounds = [np.repeat(0.0, nr_unique), np.repeat(0.0, nr_unique)]
+weight_bounds = [np.repeat(0.0,nr_unique), np.repeat(0.5, nr_unique)]
 
 # -------------------- EXECUTING C++ CODE THROUGH PYTHON ----------------------------- #
 
 # Get the data
-stock_data = import_stock_data_API(instruments=instruments, data_source= source,
+stock_data = import_stock_data_api(instruments=instruments, data_source= source,
                                    start_date= start_date, end_date=end_date, price_point=price_point,
                                    to_plot=to_plot)  # Takes c. 20 secs to query
 
@@ -103,6 +111,8 @@ for i in instruments:
 #
 # plt.plot(means, CVaRs)
 # model.write("model.lp");
-CVaR, variables, objective_function, model = CVaR_optimiser(stock_data, output, output_cum, instruments, branching,
+cvar, variables, objective_function, model = cvar_optimiser(stock_data, output, output_cum, instruments, branching,
                                                             return_target=0.0002594170240829454, beta=0.95)
 
+# Transform the cluster output to better format
+scenarios_transformed = cluster_output_modifier(instruments, scenarios, branching)
