@@ -167,7 +167,7 @@ def cluster_output_modifier(instruments, scenarios, branching):
     scenario_dict = {}
     for k in range(nr_trees):
         # print(k)
-        k_tree_data = scenarios.loc[scenarios.node.str[0].eq(str(i))] # Gets the data specific to the tree
+        k_tree_data = scenarios.loc[scenarios.node.str[0].eq(str(k))] # Gets the data specific to the tree
 
         instrument_dict = {}
         for instrument in instruments:
