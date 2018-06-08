@@ -128,9 +128,9 @@ def cvar_optimiser(data, scenarios, scenarios_cum, instruments, branching, retur
 
 
 def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, instruments, branching,
-                          initial_portfolio, market_benchmark, return_target=0.0003594170240829454,
-                          sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                          beta=0.95, initial_wealth=1):
+                          initial_portfolio, market_benchmark, sell_bounds, buy_bounds, weight_bounds,
+                          cost_to_buy=0.01, cost_to_sell=0.01, beta=0.95, initial_wealth=1,
+                          return_target=0.0003594170240829454):
 
     # Initialise the object
     min_wcvar = cplex.Cplex()
@@ -304,42 +304,35 @@ def robust_cvar_optimiser(historical_data, forecast_scenarios, scenarios_cum, in
                 rhs=[initial_wealth],
                 names=[z+ "_constraint"])
 
-    # Return
+    # Return constraint for period t = T
+    for k in range(nr_trees):
+        print(k)
 
-        ##### CONTINUE FROM HERE ##########
+        return_constraint_variables = []
+        return_constraint_parameters = []
 
-
-        wcvar_constraint_variables = ['wcvar', 'var',
-                                      *["z_k" + str(k) + "_s" + str(s) for s in range(nr_scenarios)]]
-        z_parameters = forecast_scenarios[str(k)][instruments[0]]['probability'] / np.sum(
-            forecast_scenarios[str(k)][instruments[0]]['probability'])
-        z_parameters = np.array(z_parameters) * (-1 / (1 - beta))
-        wcvar_contraint_parameters = [1, -1, *z_parameters]
+        for s in range(nr_scenarios):
+            print(s)
 
 
+            for instrument in instruments:
+                return_constraint_variables.append(*['w_k' + str(k) + "_" + instrument + "_t" + str(nr_time_periods - 2) + "_s" + str(s)])
+                return_constraint_parameters.append(*[forecast_scenarios[str(k)][instrument][s:s+1][nr_time_periods - 1][0]*
+                                                               forecast_scenarios[str(k)][instrument][s:s + 1]['probability'][0]])
 
+        # Set constraint such that the return is over certain threshold
 
-            # Get variables and corresponding parameters for every set of scenarios
+        min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=return_constraint_variables, val=return_constraint_parameters)],
+                                         senses=["G"],
+                                         rhs=[1+return_target],
+                                         names=["return_constraint"])
 
-            constraint_variables = []
+    # Run the solver
+    min_wcvar.solve()
+    # min_var.variables.get_names()
+    # print(min_var.solution.get_values())
 
-            # Use the data now to build the 2 sets of constraints - return and budget
-
-
-
-
-
-
-
-
-
-    # Add budget (weight) constraint
-    weight_constraint_parameters = list([*np.repeat(1.0, len(asset_weights))])
-    min_var.linear_constraints.add(lin_expr = [cplex.SparsePair(ind= assets, val= weight_constraint_parameters)],
-                                   senses = ["E"],
-                                   rhs = [1.0],
-                                   names = ['weight_constraint'])
-
+    return min_wcvar
 
 
 # Implementation of the robust multi-stage CVaR optimisation program
