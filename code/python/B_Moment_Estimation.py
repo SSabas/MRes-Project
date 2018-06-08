@@ -77,7 +77,7 @@ def exponential_growth(data, to_plot='yes'):
     # Fit the curve (extract the parameters a and b)
     parameters, parameters_cov = curve_fit(log_function, xdata, ydata)
 
-    # Calculate thep arameters based on least squares
+    # Calculate the parameters based on least squares
     parameters = np.array([0.0, 0.0])
     parameters[1] = np.cov(ydata, xdata)[0][1] / np.cov(ydata, xdata)[1][1]
     parameters[0] = np.exp(np.mean(np.log(data)) - parameters[1]*np.mean(xdata))
@@ -141,6 +141,55 @@ def calculate_moments(data, to_plot='no'):
 
     return mean_matrix, variance_matrix
 
+
+def calculate_moments2(data, to_plot='no'):
+
+    # Dictionary placeholders
+    means = {}
+    variances = {}
+
+    # Define functions
+    def log_function(x, a, b):
+        return np.log(a) + b * x
+
+    # Specify the length of the series
+    t_range = range(1, data.shape[0]+1)
+
+    # Calculate the exponential growths and covariances
+    for column_j in data:
+        print(column_j)
+
+        price_series_j = data[column_j]
+        residuals_j, parameters_j = exponential_growth(price_series_j, to_plot=to_plot)
+        means[column_j] = parameters_j[1]
+
+        # Calculate the expected price
+        expected_price_series_j = np.exp(log_function(t_range, parameters_j[0], parameters_j[1]))
+        variances[column_j] = []
+
+        for column_l in data:
+
+            price_series_l = data[column_l]
+            residuals_l, parameters_l = exponential_growth(price_series_l, to_plot=to_plot)
+
+            # Calculate the expected price
+            expected_price_series_l = np.exp(log_function(t_range, parameters_l[0], parameters_l[1]))
+
+            # Calculate variance
+            variance_j_l = 1/len(t_range) * np.sum((price_series_j - np.mean(expected_price_series_j)) * (price_series_l - np.mean(expected_price_series_l)))
+            variances[column_j].append(variance_j_l)
+
+    # Put the covariances to K*K matrix
+    variance_matrix = []
+    mean_matrix = []
+
+    for column_j in data:
+        mean_matrix.append(means[column_j])
+        variance_matrix.append(variances[column_j])
+
+    variance_matrix = np.array(variance_matrix).reshape(data.shape[1], data.shape[1])
+
+    return mean_matrix, variance_matrix
 
 # Output in format required for C++ simulation
 def cpp_layout(file_name, data, branching=(4, 4, 4)):
