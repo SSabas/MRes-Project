@@ -34,6 +34,61 @@ import bs4 as bs
 
 # -------------------- IMPORT STOCK-PRICE TIME SERIES  ----------------------------- #
 
+# From Morningstar through Python API
+def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
+                          start_date= '1980-01-01', end_date='2018-01-01', price_point='Close',
+                          random='no', number=10, random_seed=500, to_plot='yes'):
+
+    # Choose random stocks and pull from database
+    if random == 'yes':
+
+        # Get tickers
+        SP500_tickers = get_SP500_tickers()
+
+        # Choose random tickers
+        np.random.seed(random_seed)
+        instruments = np.random.choice(SP500_tickers, number, replace=False)
+
+        # Make sure instruments are in capital letters
+        instruments = [instrument.upper() for instrument in instruments]
+
+        # Retrieve the stock prices
+        panel_data = data.DataReader(instruments, data_source, start_date, end_date)
+
+    # Pull historical data of predefined stocks
+    else:
+
+        # Make sure instruments are in capital letters
+        instruments = [instrument.upper() for instrument in instruments]
+
+        # Query the data
+        panel_data = data.DataReader(instruments, data_source, start_date, end_date)
+
+    # Format output
+    price_series = panel_data[price_point]
+    price_series = price_series.unstack(level=-2)
+
+    # Getting all weekdays between start date and end date
+    all_weekdays = pd.date_range(start=start_date, end=end_date, freq='B')
+
+    # Reindex using all_weekdays as the new index
+    price_series = price_series.reindex(all_weekdays)
+
+    # Reindexing will insert missing values (NaN) for the dates that were not present
+    # in the original set. To cope with this, we can fill the missing by replacing them
+    # with the latest available price for each instrument.
+    price_series = price_series.fillna(method='ffill')
+
+    if to_plot == 'yes':
+
+        plt.style.use("seaborn-darkgrid")
+        ax = price_series.plot(legend=True, title='Time-series of Stock Prices', colormap='ocean')
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Adjusted Closing Price ($)")
+
+    return price_series
+
+
 # From saved files
 def import_data_saved(instrument_type='stocks', instruments=('ko', 'f', 'ibm', 'axp', 'pg'),
                       random='yes', price='Close', number=10, random_seed=500, remove_NA='yes',
@@ -130,59 +185,5 @@ def get_SP500_tickers():
     with open("sp500tickers.pickle", "wb") as f:
         pickle.dump(tickers, f)
     return tickers
-
-
-# From Google through API
-def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
-                          start_date= '1980-01-01', end_date='2018-01-01', price_point='Close',
-                          random='no', number=10, random_seed=500, to_plot='yes'):
-
-    # # Change format of date variables
-    # start_data = datetime.datetime(1980, 1, 1)
-    # end_date = datetime.datetime(2012, 1, 1)
-
-    # Choose random stocks and pull from database
-    if random == 'yes':
-
-        # Get tickers
-        SP500_tickers = get_SP500_tickers()
-
-        # Choose random tickers
-        np.random.seed(random_seed)
-        instruments = np.random.choice(SP500_tickers, number, replace=False)
-
-        # Retrieve the stock prices
-
-        panel_data = data.DataReader(instruments, data_source, start_date, end_date)
-
-    # Pull historical data of predefined stocks
-    else:
-
-        panel_data = data.DataReader(instruments, data_source, start_date, end_date)
-
-    # Format output
-    price_series = panel_data[price_point]
-    price_series = price_series.unstack(level=-2)
-
-    # Getting all weekdays between start date and end date
-    all_weekdays = pd.date_range(start=start_date, end=end_date, freq='B')
-
-    # Reindex using all_weekdays as the new index
-    price_series = price_series.reindex(all_weekdays)
-
-    # Reindexing will insert missing values (NaN) for the dates that were not present
-    # in the original set. To cope with this, we can fill the missing by replacing them
-    # with the latest available price for each instrument.
-    price_series = price_series.fillna(method='ffill')
-
-    if to_plot == 'yes':
-
-        plt.style.use("seaborn-darkgrid")
-        ax = price_series.plot(legend=True, title = 'Time-series of Stock Prices', colormap='ocean')
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Adjusted Closing Price ($)")
-
-    return price_series
-
 
 ####################### END ########################
