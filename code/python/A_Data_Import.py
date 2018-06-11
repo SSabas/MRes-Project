@@ -24,9 +24,8 @@ Date:
 import pandas as pd
 import numpy as np
 import os
-import datetime
 import matplotlib.pyplot as plt
-from pandas_datareader import data
+from pandas_datareader import data as datareader
 import pickle
 import requests
 import bs4 as bs
@@ -37,47 +36,55 @@ import bs4 as bs
 # From Morningstar through Python API
 def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
                           start_date= '1980-01-01', end_date='2018-01-01', price_point='Close',
-                          random='no', number=10, random_seed=500, to_plot='yes'):
+                          random='no', number=10, random_seed=500, to_plot='yes', to_save='no',
+                          from_file='yes'):
 
     # Choose random stocks and pull from database
-    if random == 'yes':
+    if from_file == 'yes':
 
-        # Get tickers
-        SP500_tickers = get_SP500_tickers()
+        price_series = pd.read_csv(os.getcwd() + '/data/morningstar/data_for_%s_stocks.csv' %(str(len(instruments))),
+                                   header=0, index_col=0, parse_dates=True)
 
-        # Choose random tickers
-        np.random.seed(random_seed)
-        instruments = np.random.choice(SP500_tickers, number, replace=False)
-
-        # Make sure instruments are in capital letters
-        instruments = [instrument.upper() for instrument in instruments]
-
-        # Retrieve the stock prices
-        panel_data = data.DataReader(instruments, data_source, start_date, end_date)
-
-    # Pull historical data of predefined stocks
     else:
 
-        # Make sure instruments are in capital letters
-        instruments = [instrument.upper() for instrument in instruments]
+        if random == 'yes':
 
-        # Query the data
-        panel_data = data.DataReader(instruments, data_source, start_date, end_date)
+            # Get tickers
+            SP500_tickers = get_SP500_tickers()
 
-    # Format output
-    price_series = panel_data[price_point]
-    price_series = price_series.unstack(level=-2)
+            # Choose random tickers
+            np.random.seed(random_seed)
+            instruments = np.random.choice(SP500_tickers, number, replace=False)
 
-    # Getting all weekdays between start date and end date
-    all_weekdays = pd.date_range(start=start_date, end=end_date, freq='B')
+            # Make sure instruments are in capital letters
+            instruments = [instrument.upper() for instrument in instruments]
 
-    # Reindex using all_weekdays as the new index
-    price_series = price_series.reindex(all_weekdays)
+            # Retrieve the stock prices
+            panel_data = datareader.DataReader(instruments, data_source, start_date, end_date)
 
-    # Reindexing will insert missing values (NaN) for the dates that were not present
-    # in the original set. To cope with this, we can fill the missing by replacing them
-    # with the latest available price for each instrument.
-    price_series = price_series.fillna(method='ffill')
+        # Pull historical data of predefined stocks
+        else:
+
+            # Make sure instruments are in capital letters
+            instruments = [instrument.upper() for instrument in instruments]
+
+            # Query the data
+            panel_data = datareader.DataReader(instruments, data_source, start_date, end_date)
+
+        # Format output
+        price_series = panel_data[price_point]
+        price_series = price_series.unstack(level=-2)
+
+        # Getting all weekdays between start date and end date
+        all_weekdays = pd.date_range(start=start_date, end=end_date, freq='B')
+
+        # Reindex using all_weekdays as the new index
+        price_series = price_series.reindex(all_weekdays)
+
+        # Reindexing will insert missing values (NaN) for the dates that were not present
+        # in the original set. To cope with this, we can fill the missing by replacing them
+        # with the latest available price for each instrument.
+        price_series = price_series.fillna(method='ffill')
 
     if to_plot == 'yes':
 
@@ -85,6 +92,10 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
         ax = price_series.plot(legend=True, title='Time-series of Stock Prices', colormap='ocean')
         ax.set_xlabel("Date")
         ax.set_ylabel("Adjusted Closing Price ($)")
+
+    if to_save == 'yes':
+
+        price_series.to_csv(os.getcwd() + '/data/morningstar/data_for_%s_stocks.csv' %(str(len(instruments))))
 
     return price_series
 
