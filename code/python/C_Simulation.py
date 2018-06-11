@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import subprocess
 from functools import reduce
 from matplotlib.ticker import MaxNLocator
+import re
 
 # -------------------- PYTHON WRAPPER FOR CLUSTER MODULE ----------------------------- #
 
@@ -66,43 +67,62 @@ def compile_cluster():
     subprocess.call(["make", "install"], shell=True, cwd=path)
 
 
-def run_cluster(input_file, output_file, samples=10000):
+def run_cluster(input_file, output_file, folder, samples=10000, scenario_trees=4):
 
-    # Define the inputs
-    path = os.getcwd() + '/code/cpp/cluster2/'
-    inputs = '-f ' + input_file
-    outputs = ' -o ' + output_file
-    simulations = ' -n ' + str(samples)
-    combined = inputs + outputs + simulations
+    for i in range(1, scenario_trees+1):
 
-    # Run te process
-    subprocess.call('./cluster2 ' + combined, shell=True, cwd=path)
+        print('Simulating %sth scenario tree (out of %s).' %(i, scenario_trees))
+
+        # Define the inputs
+        path = os.getcwd() + '/code/cpp/cluster2/'
+        inputs = '-f ' + input_file
+        outputs = ' -o ' + output_file
+        simulations = ' -n ' + str(samples)
+        combined = inputs + outputs + simulations
+
+        # Run the process
+        subprocess.call('./cluster2 ' + combined, shell=True, cwd=path)
+
+        # Move to appropriate directory
+        os.rename(os.getcwd() + '/code/cpp/cluster2/' + output_file,
+                  os.getcwd() + '/data/simulations/' + folder + '/' + output_file + '_%s' %(str(i)))
 
 
-def read_cluster_output(output_file, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')):
+def read_cluster_output(output_file, folder, scenario_trees, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')):
 
-    # Complete the path
-    path = os.getcwd() + '/code/cpp/cluster2/' + output_file
+    # Specify the directory
+    path = os.getcwd() + '/data/simulations/' + folder + "/" + output_file
 
-    # Extract the content
-    makefile = open(path, "r")
-    lines = makefile.readlines()
-    makefile.close()
+    # Allocate dictionary
+    output = {}
 
-    # Get how many assets are
-    assets = int(lines[1][7])  # Hence would ignore 4 + (N*N-N)/2 + N + 1 lines in the beginning
+    for i in range(1, scenario_trees+1):
 
-    # Get the scenarios
-    begin = int(4 + (assets*assets-assets)/2 + assets + 1)
-    end = len(lines) - 6
-    scenarios = lines[begin:end]
+        # Specify the file
+        file = path + "_%s" %(i)
 
-    # Extract the scenarios and format the output
-    scenarios_list = list([line.replace('\t', ' ').replace(' \n', '').split(' ') for line in scenarios])
-    scenarios_df = pd.DataFrame(scenarios_list)
-    scenarios_df.columns = np.array(['node', 'probability', *asset_names])
+        # Extract the content
+        makefile = open(file, "r")
+        lines = makefile.readlines()
+        makefile.close()
 
-    return scenarios_df
+        # Get how many assets are
+        assets = int(lines[1][len('ASSETS '):-len('\n')])
+
+        # Get the scenarios (would ignore 4 + (N*N-N)/2 + N + 1 lines in the beginning)
+        begin = int(4 + (assets*assets-assets)/2 + assets + 1)
+        end = len(lines) - 6
+        scenarios = lines[begin:end]
+
+        # Extract the scenarios and format the output
+        scenarios_list = list([line.replace('\t', ' ').replace(' \n', '').split(' ') for line in scenarios])
+        scenarios_df = pd.DataFrame(scenarios_list)
+        scenarios_df.columns = np.array(['node', 'probability', *asset_names])
+
+        # Put to dictionary
+        output[str(i)] = scenarios_df
+
+    return output
 
 
 def format_cluster_output(data, instrument, scenarios, branching, to_plot='yes'):
@@ -166,7 +186,7 @@ def cluster_output_modifier(instruments, scenarios, branching):
     # Allocate the scenarios to trees based on the first branching layer and separate the assets
     scenario_dict = {}
     for k in range(nr_trees):
-        # print(k)
+        print('Transforming tree number %s (out of %s).' %(k+1, nr_trees))
         k_tree_data = scenarios.loc[scenarios.node.str[0].eq(str(k))] # Gets the data specific to the tree
 
         instrument_dict = {}
