@@ -25,6 +25,9 @@ import cplex
 import numpy as np
 from operator import mul
 from functools import reduce
+import pandas as pd
+import os
+
 
 # ------------------------------ DEFINE THE PROGRAM ------------------------------- #
 
@@ -322,7 +325,7 @@ def robust_cvar_optimiser(forecast_scenarios, instruments, branching, initial_po
 
 def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio,
                                   sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                                  beta=0.95, initial_wealth=1, return_target=0.000359):
+                                  beta=0.95, initial_wealth=1, return_target=0.000359, to_save='no', folder=''):
 
     # Initialise the object
     min_wcvar = cplex.Cplex()
@@ -491,14 +494,14 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
             z_constraint_parameters.append(*[1.0])
 
             min_wcvar.linear_constraints.add(
-                lin_expr=[cplex.SparsePair(ind=wcvar_constraint_variables, val=wcvar_contraint_parameters)],
+                lin_expr=[cplex.SparsePair(ind=z_constraint_variables, val=z_constraint_parameters)],
                 senses=["G"],
                 rhs=[initial_wealth],
                 names=[z + "_constraint"])
 
     # Return constraint for period t = T
     for k in scenarios_dict:
-        print(k)
+        # print(k)
         return_constraint_variables = []
         return_constraint_parameters = []
 
@@ -515,7 +518,7 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
         # Put to dataframe and then group by weight (sum it)
         # Define the dataframe to be populated
         data_dict = {'variables': return_constraint_variables, 'values': return_constraint_parameters}
-        data_df = pd.DataFrame(data=data)
+        data_df = pd.DataFrame(data=data_dict)
         data_grouped = data_df.groupby(['variables'])['values'].sum()
         return_constraint_variables = data_grouped.index
         return_constraint_parameters = data_grouped.values
@@ -526,12 +529,20 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
                                          rhs=[return_target],
                                          names=['k' + str(k) + "_return_constraint"])
 
+    # Write to file
+    if to_save == 'yes':
+        min_wcvar.write(os.getcwd() + "/data/simulations/" + folder + "/robust_optimisation_programme.lp")
+
     # Run the solver
     min_wcvar.solve()
+
+    # Get w_0 values
+    indices = [min_wcvar.variables.get_names().index(i) for i in w0_asset_weights]
+    w_0_solution = [min_wcvar.solution.get_values()[index] for index in indices]
     # min_wcvar.variables.get_names()
     # print(min_wcvar.solution.get_values())
 
-    return min_wcvar
+    return min_wcvar, w_0_solution, w0_asset_weights
 
 
 
