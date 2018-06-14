@@ -42,12 +42,13 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
     min_wcvar.objective.set_sense(min_wcvar.objective.sense.minimize)
 
     # Get quantities required to define variables
+    scenario_names = list(scenarios_dict.keys())
     nr_trees = len(scenarios_dict.keys()) # K variable in the model
     nr_time_periods = len(branching)+1  # Includes first time period (t=0)
     nr_scenarios = reduce(mul, branching[1:], 1) # S variable in the model
-    final_nodes = list(scenarios_dict['1'][scenarios_dict['1'].node.str.len()== (nr_time_periods-1)]['node'])
-    internal_nodes = list(scenarios_dict['1'][scenarios_dict['1'].node.str.len() < (nr_time_periods-1)]['node'])
-    all_nodes = list(scenarios_dict['1']['node'])
+    final_nodes = list(scenarios_dict[scenario_names[0]][scenarios_dict[scenario_names[0]].node.str.len()== (nr_time_periods-1)]['node'])
+    internal_nodes = list(scenarios_dict[scenario_names[0]][scenarios_dict[scenario_names[0]].node.str.len() < (nr_time_periods-1)]['node'])
+    all_nodes = list(scenarios_dict[scenario_names[0]]['node'])
 
     #### VARIABLES ####
 
