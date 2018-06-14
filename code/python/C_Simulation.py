@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import subprocess
 from functools import reduce
 from matplotlib.ticker import MaxNLocator
+import random
 import re
 
 # -------------------- PYTHON WRAPPER FOR CLUSTER MODULE ----------------------------- #
@@ -81,11 +82,14 @@ def run_cluster(input_file, output_file, folder, samples=10000, scenario_trees=4
         combined = inputs + outputs + simulations
 
         # Run the process
-        subprocess.call('./cluster2 ' + combined, shell=True, cwd=path)
+        subprocess.call('./cluster2 ' + combined, shell=True, cwd=path, timeout=3)
 
         # Move to appropriate directory
         os.rename(os.getcwd() + '/code/cpp/cluster2/' + output_file,
-                  os.getcwd() + '/data/simulations/' + folder + '/' + output_file + '_%s' %(str(i)))
+                  os.getcwd() + '/results/' + folder + '/' + output_file + "_%s" %i)
+
+        # Delay for the random generator to renew for cluster run
+        sleep(1.0) # Delay of a second
 
 
 def read_cluster_output(output_file, folder, scenario_trees, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')):
