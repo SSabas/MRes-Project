@@ -531,7 +531,7 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
 
     # Write to file
     if to_save == 'yes':
-        min_wcvar.write(os.getcwd() + "/data/simulations/" + folder + "/robust_optimisation_programme.lp")
+        min_wcvar.write(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
 
     # Run the solver
     min_wcvar.solve()

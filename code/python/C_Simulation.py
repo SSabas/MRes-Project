@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import subprocess
 from functools import reduce
 from matplotlib.ticker import MaxNLocator
+from time import sleep
 import random
 import re
 
@@ -95,7 +96,7 @@ def run_cluster(input_file, output_file, folder, samples=10000, scenario_trees=4
 def read_cluster_output(output_file, folder, scenario_trees, asset_names=('KO', 'F', 'IBM', 'AXP', 'PG')):
 
     # Specify the directory
-    path = os.getcwd() + '/data/simulations/' + folder + "/" + output_file
+    path = os.getcwd() + '/results/' + folder + "/" + output_file
 
     # Allocate dictionary
     output = {}
