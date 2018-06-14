@@ -37,7 +37,7 @@ import bs4 as bs
 def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
                           start_date= '1980-01-01', end_date='2018-01-01', price_point='Close',
                           random='no', number=10, random_seed=500, to_plot='yes', to_save='no',
-                          from_file='yes'):
+                          from_file='yes', frequency='daily'):
 
     # Choose random stocks and pull from database
     if from_file == 'yes':
@@ -65,18 +65,18 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
         # Pull historical data of predefined stocks
         else:
 
+
             # Make sure instruments are in capital letters
             instruments = [instrument.upper() for instrument in instruments]
 
-            # Query the data
-            panel_data = datareader.DataReader(instruments, data_source, start_date, end_date)
+            panel_data = datareader.DataReader(instruments, data_source, start_date, end_date, retry_count=0)
 
         # Format output
         price_series = panel_data[price_point]
         price_series = price_series.unstack(level=-2)
 
         # Getting all weekdays between start date and end date
-        all_weekdays = pd.date_range(start=start_date, end=end_date, freq='B')
+        all_weekdays = pd.date_range(start=start_date, end=end_date, freq='D')
 
         # Reindex using all_weekdays as the new index
         price_series = price_series.reindex(all_weekdays)
@@ -85,6 +85,10 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
         # in the original set. To cope with this, we can fill the missing by replacing them
         # with the latest available price for each instrument.
         price_series = price_series.fillna(method='ffill')
+
+    if frequency == 'weekly':
+
+        price_series = price_series.resample('W', convention='start').first()
 
     if to_plot == 'yes':
 
