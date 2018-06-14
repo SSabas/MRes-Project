@@ -27,13 +27,15 @@ from operator import mul
 from functools import reduce
 import pandas as pd
 import os
+from gurobipy import *
 
 # ------------------------------ DEFINE THE PROGRAM ------------------------------- #
 
 
 def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio,
                                   sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                                  beta=0.95, initial_wealth=1, return_target=0.000359, to_save='no', folder=''):
+                                  beta=0.95, initial_wealth=1, return_target=1.05, to_save='no', folder='',
+                                  solver='gurobi'):
 
     # Initialise the object
     min_wcvar = cplex.Cplex()
@@ -244,21 +246,36 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
                                          rhs=[return_target],
                                          names=['k' + str(k) + "_return_constraint"])
 
+    if solver == 'gurobi':
+
+        # Need to write CPLEX LP to file and then export as a gurobi file
+        min_wcvar.write(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
+
+        # Run gurobi solver
+        lp_file = read(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
+        presolved_lp = lp_file.presolve()
+        presolved_lp.optimize()
+
+        # Get variables and objective
+        objective_value = presolved_lp.ObjVal
+        w_0_variables = [x.varName for x in presolved_lp.getVars() if x.VarName.find('w_0') != -1]
+        w_0_values = [x.x for x in presolved_lp.getVars() if x.VarName.find('w_0') != -1]
+        # solution = presolved_lp.getVars()
+
+    if solver == 'cplex':
+
+        min_wcvar.solve()
+        objective_value = min_wcvar.get_objective_value()
+        indices = [min_wcvar.variables.get_names().index(i) for i in w0_asset_weights]
+        w_0_values = [min_wcvar.solution.get_values()[index] for index in indices]
+        w_0_variables = w0_asset_weights
+
     # Write to file
     if to_save == 'yes':
         print('Writing the LP to file.')
         min_wcvar.write(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
 
-    # Run the solver
-    min_wcvar.solve()
-
-    # Get w_0 values
-    indices = [min_wcvar.variables.get_names().index(i) for i in w0_asset_weights]
-    w_0_solution = [min_wcvar.solution.get_values()[index] for index in indices]
-    # min_wcvar.variables.get_names()
-    # print(min_wcvar.solution.get_values())
-
-    return min_wcvar, w_0_solution, w0_asset_weights
+    return objective_value, w_0_variables, w_0_values # min_wcvar, w_0_solution, w0_asset_weights
 
 
 #
