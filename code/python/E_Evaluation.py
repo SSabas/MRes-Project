@@ -102,9 +102,11 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
         # Save the plot
 
         # Save the data dictionary
-        json_file = json.dumps(dict)
-        f = open(os.getcwd() + 'results/'+  folder + "/efficient_frontier_dict.json", "w")
+        json_file = json.dumps(results)
+        f = open(os.getcwd() + '/results/'+ folder + "/efficient_frontier_dict.json", "w")
         f.write(json_file)
         f.close()
 
     return results
+
+results_w_bounds = results

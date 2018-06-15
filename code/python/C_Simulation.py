@@ -29,8 +29,7 @@ import subprocess
 from functools import reduce
 from matplotlib.ticker import MaxNLocator
 from time import sleep
-import random
-import re
+
 
 # -------------------- PYTHON WRAPPER FOR CLUSTER MODULE ----------------------------- #
 

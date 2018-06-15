@@ -26,7 +26,6 @@ import numpy as np
 from operator import mul
 from functools import reduce
 import pandas as pd
-import os
 from gurobipy import *
 
 # ------------------------------ DEFINE THE PROGRAM ------------------------------- #
@@ -34,8 +33,8 @@ from gurobipy import *
 
 def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio,
                                   sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                                  beta=0.95, initial_wealth=1, return_target=1.05, to_save='no', folder='',
-                                  solver='gurobi'):
+                                  beta=0.95, initial_wealth=1, return_target=1.08, to_save='no', folder='',
+                                  solver='gurobi', wcvar_minimizer='no'):
 
     # Initialise the object
     min_wcvar = cplex.Cplex()
@@ -215,36 +214,39 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
                 rhs=[initial_wealth],
                 names=[z + "_constraint"])
 
-    # Return constraint for period t = T
-    print('Adding period t = T return constraints.')
-    for k in scenarios_dict:
-        # print(k)
-        return_constraint_variables = []
-        return_constraint_parameters = []
+    # If we want to minimise wcvar, then we do not impose any return constraints
+    if wcvar_minimizer == 'no':
 
-        for node in final_nodes:
-            # print(node)
-            return_constraint_variables.append(['w_k' + str(k) + "_" + instrument + "_s" + str(node)[:-1] for instrument in instruments])
-            return_constraint_parameters.append(np.array(scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)].T[2:-1].T.astype(float)\
-                                           * float(scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)]['cum_probability'])).flatten())
+        # Return constraint for period t = T
+        print('Adding period t = T return constraints.')
+        for k in scenarios_dict:
+            # print(k)
+            return_constraint_variables = []
+            return_constraint_parameters = []
 
-        # Flatten the lists
-        return_constraint_variables = [item for sublist in return_constraint_variables for item in sublist]
-        return_constraint_parameters = [item for sublist in return_constraint_parameters for item in sublist]
+            for node in final_nodes:
+                # print(node)
+                return_constraint_variables.append(['w_k' + str(k) + "_" + instrument + "_s" + str(node)[:-1] for instrument in instruments])
+                return_constraint_parameters.append(np.array(scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)].T[2:-1].T.astype(float)\
+                                               * float(scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)]['cum_probability'])).flatten())
 
-        # Put to dataframe and then group by weight (sum it)
-        # Define the dataframe to be populated
-        data_dict = {'variables': return_constraint_variables, 'values': return_constraint_parameters}
-        data_df = pd.DataFrame(data=data_dict)
-        data_grouped = data_df.groupby(['variables'])['values'].sum()
-        return_constraint_variables = data_grouped.index
-        return_constraint_parameters = data_grouped.values
+            # Flatten the lists
+            return_constraint_variables = [item for sublist in return_constraint_variables for item in sublist]
+            return_constraint_parameters = [item for sublist in return_constraint_parameters for item in sublist]
 
-        # Set constraint such that the return is over certain threshold
-        min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=return_constraint_variables, val=return_constraint_parameters)],
-                                         senses=["G"],
-                                         rhs=[return_target],
-                                         names=['k' + str(k) + "_return_constraint"])
+            # Put to dataframe and then group by weight (sum it)
+            # Define the dataframe to be populated
+            data_dict = {'variables': return_constraint_variables, 'values': return_constraint_parameters}
+            data_df = pd.DataFrame(data=data_dict)
+            data_grouped = data_df.groupby(['variables'])['values'].sum()
+            return_constraint_variables = data_grouped.index
+            return_constraint_parameters = data_grouped.values
+
+            # Set constraint such that the return is over certain threshold
+            min_wcvar.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=return_constraint_variables, val=return_constraint_parameters)],
+                                             senses=["G"],
+                                             rhs=[return_target],
+                                             names=['k' + str(k) + "_return_constraint"])
 
     if solver == 'gurobi':
 
@@ -256,19 +258,35 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
         presolved_lp = lp_file.presolve()
         presolved_lp.optimize()
 
-        # Get variables and objective
-        objective_value = presolved_lp.ObjVal
-        w_0_variables = [x.varName for x in presolved_lp.getVars() if x.VarName.find('w_0') != -1]
-        w_0_values = [x.x for x in presolved_lp.getVars() if x.VarName.find('w_0') != -1]
-        # solution = presolved_lp.getVars()
+        if presolved_lp.Status == GRB.OPTIMAL:
+            # Get variables and objective
+            objective_value = presolved_lp.ObjVal
+            w_0_variables = [x.varName for x in presolved_lp.getVars() if x.VarName.find('w_0') != -1]
+            w_0_values = [x.x for x in presolved_lp.getVars() if x.VarName.find('w_0') != -1]
+            # solution = presolved_lp.getVars()
+
+        else:
+            print('Not primal feasible.')
+            objective_value = np.nan
+            w_0_values = np.nan
+            w_0_variables = np.nan
 
     if solver == 'cplex':
 
         min_wcvar.solve()
-        objective_value = min_wcvar.get_objective_value()
-        indices = [min_wcvar.variables.get_names().index(i) for i in w0_asset_weights]
-        w_0_values = [min_wcvar.solution.get_values()[index] for index in indices]
-        w_0_variables = w0_asset_weights
+        # min_wcvar.solution.is_primal_feasible()
+
+        if min_wcvar.solution.is_primal_feasible():
+            objective_value = min_wcvar.solution.get_objective_value()
+            indices = [min_wcvar.variables.get_names().index(i) for i in w0_asset_weights]
+            w_0_values = [min_wcvar.solution.get_values()[index] for index in indices]
+            w_0_variables = w0_asset_weights
+
+        else:
+            print('Not primal feasible.')
+            objective_value = np.nan
+            w_0_values = np.nan
+            w_0_variables = np.nan
 
     # Write to file
     if to_save == 'yes':

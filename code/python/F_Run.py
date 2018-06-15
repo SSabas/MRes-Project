@@ -48,36 +48,45 @@ from D_CPLEX_Solver import *
 folder = 'test_run'
 input_file = 'moment_estimations'
 output_file = 'scenario_tree'
-simulations = 10000
-scenarios = 4
-branching = (2, 2, 8, 8)
-instruments = ['KO', 'MSFT', 'IBM', 'AXP', 'PG', 'DIS', 'INTC', 'FDX', 'ADM', 'MAT']
-start_date = '2017-01-01'
-end_date = '2018-01-01'
+simulations = 40000
+nr_scenarios = 10
+branching = (10, 10, 2)
+instruments_NYSE = ['KO', 'MSFT', 'IBM', 'AXP', 'PG', 'DIS', 'INTC', 'FDX', 'ADM', 'MAT']
+instruments_FTSE = ['HSBC', 'VOD', 'BP', 'GSK', 'AZN', 'RIO', 'BG', 'TSCO', 'AAL', 'PRU']
+instruments = instruments_FTSE #+ instruments_FTSE
+start_date = '2015-01-01'
+end_date = '2017-01-01'
 source = 'morningstar'
 price_point = 'Close'
 to_plot = 'yes'
 initial_portfolio = np.repeat(1/len(instruments), len(instruments)) # Equally weighted portfolio
+beta = 0.99
+cost_to_sell = 0.01
+cost_to_buy = 0.01
+initial_wealth= 1
+return_target = 1.02
+solver = 'gurobi'
 
 # Bounds for optimisation
 sell_bounds = [[0.0], [0.2]]
 buy_bounds = [[0.0], [0.2]]
-weight_bounds = [[0.0], [0.5]]
+weight_bounds = [[0.0], [1.0]]
 
-# nr_unique = len(instruments) + (len(branching)-1) * len(instruments) * branching[0] * reduce(mul, branching[1:], 1) # Number of unique indices for decision variables
-# sell_bounds = [np.repeat(0.0, nr_unique), np.repeat(0.5, nr_unique)] # Excludes the last period
-# buy_bounds = [np.repeat(0.0, nr_unique), np.repeat(0.5, nr_unique)]
-# weight_bounds = [np.repeat(0.0, nr_unique), np.repeat(0.5, nr_unique)]
+# Improves readability (extends)
+pd.set_option('display.max_columns', 10)
+
+# Specify testing parameters
+returns = np.linspace(1.02, 1.08, 20)
 
 # -------------------- EXECUTING C++ CODE THROUGH PYTHON ----------------------------- #
 
 # Get the data
 stock_data = import_stock_data_api(instruments=instruments, data_source= source,
                                    start_date=start_date, end_date=end_date, price_point=price_point,
-                                   to_plot=to_plot, to_save='no', from_file='no')  # Takes c. 20 secs to query
+                                   to_plot=to_plot, to_save='yes', from_file='no')  # Takes c. 20 secs to query
 
-# Teat exponential fit for a single stock
-# residuals, parameters = exponential_growth(stock_data['MSFT'], to_plot=to_plot)
+# Test exponential fit for a single stock
+# residuals, parameters = exponential_growth(stock_data['VOD'], to_plot=to_plot)
 
 # Test moment-calculation
 # means, variances = calculate_moments(stock_data)
@@ -86,19 +95,12 @@ stock_data = import_stock_data_api(instruments=instruments, data_source= source,
 put_to_cpp_layout(folder, input_file, stock_data, branching=branching)
 
 # Run the simulation
-# clean_cluster()
+# clean_cluster() # In case first run
 # compile_cluster() # Gives some errors, but still works
-run_cluster(input_file, output_file, folder, samples=simulations, scenario_trees=scenarios)
-
-# Use different branching
-# branching = (10,10,10)
-# samples = 100000
-# cpp_layout(input_file, stock_data, exp_function, branching=branching)
-# run_cluster(input_file, output_file, samples=samples)
+run_cluster(input_file, output_file, folder, samples=simulations, scenario_trees=nr_scenarios)
 
 # Read the output
-pd.set_option('display.max_columns', 10)
-scenarios_dict = read_cluster_output(output_file, folder, scenario_trees=scenarios, asset_names=instruments)
+scenarios_dict = read_cluster_output(output_file, folder, scenario_trees=nr_scenarios, asset_names=instruments)
 
 # Get the final cumulative probabilities
 scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
@@ -109,6 +111,19 @@ output_cum = {}
 for i in instruments:
     print(i)
     output[i], output_cum[i] = plot_cluster_output(stock_data, i, scenarios_dict['1'], branching, to_plot='yes')
+
+
+
+answer, w_0_weights, variables = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio,
+                                  sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
+                                  beta=0.99, initial_wealth=1, return_target=1.06, to_save='yes', folder=folder)
+
+answer, w_0_weights, variables = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio,
+                                  sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
+                                  beta=0.95, initial_wealth=1, return_target=1.06, to_save='no', folder='',
+                                  solver='gurobi', wcvar_minimizer='yes')
+
+    wcvars.append(answer.solution.get_objective_value())
 
 return_targets = np.linspace(1, 1.08, 20)
 wcvars = []
