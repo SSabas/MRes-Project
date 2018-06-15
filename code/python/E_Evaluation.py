@@ -21,12 +21,9 @@ Date:
 
 # ------------------------------ IMPORT LIBRARIES --------------------------------- #
 
-import cplex
-import numpy as np
-from operator import mul
-from functools import reduce
-import pandas as pd
+import matplotlib.pyplot as plt
 import os
+import json
 
 # Add the python scripts folder to system path
 sys.path.insert(0, os.getcwd() + '/code/python')
@@ -36,8 +33,9 @@ from D_CPLEX_Solver import *
 # ----------------------------- EVALUATE THE OPTIMISER ---------------------------- #
 
 def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_portfolio,
-                                  sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                                  beta=0.99, initial_wealth=1, to_plot='yes', folder=folder):
+                       sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
+                       beta=0.99, initial_wealth=1, to_plot='yes', folder=folder, solver='qurobi',
+                       to_save='yes'):
 
     # Create dictionary of dictionaries for testing and also the results dictionary
     test_dict = {}
@@ -56,47 +54,57 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
         print('Cycle number %s (out of %s).' %(j, len(returns)))
 
         # Firstly run the full optimiser
-        print('Optimising with full set of trees (%s trees in total).' %len(list(scenarios_dict.keys())))
+        print('Optimising with full set of trees (%s trees in total) in cycle number %s (out of %s).'
+              %(len(list(scenarios_dict.keys())), j, len(returns)))
         answer, w_0_weights, variables = robust_portfolio_optimisation(scenarios_dict, instruments, branching,
                                                                        initial_portfolio, sell_bounds, buy_bounds,
                                                                        weight_bounds, cost_to_buy=cost_to_buy,
                                                                        cost_to_sell=cost_to_sell, beta=beta,
-                                                                       initial_wealth=initial_wealth, return_target=i)
-        results['All'].append(answer.solution.get_objective_value())
+                                                                       initial_wealth=initial_wealth, return_target=i,
+                                                                       folder=folder, solver = solver)
+        results['All'].append(answer)#.solution.get_objective_value())
 
         # Run each tree separately
         for tree in test_dict:
-            print('Optimising with only single tree (tree number %s).'%(tree))
+            print('Optimising with only single tree (tree number %s) in cycle number %s (out of %s).'
+                  %(tree, j, len(returns)))
             answer, w_0_weights, variables = robust_portfolio_optimisation(test_dict[tree], instruments, branching,
                                                                            initial_portfolio,
                                                                            sell_bounds, buy_bounds, weight_bounds,
                                                                            cost_to_buy=cost_to_buy,
                                                                            cost_to_sell=cost_to_sell,
                                                                            beta=beta, initial_wealth=initial_wealth,
-                                                                           return_target=i, folder=folder)
-            results[tree].append(answer.solution.get_objective_value())
+                                                                           return_target=i, folder=folder,
+                                                                           solver= solver)
+            results[tree].append(answer)#.solution.get_objective_value())
 
+    if to_plot == 'yes':
 
+        print('Running the optimisation.')
+        for i in results:
+            print(i)
+            # if np.max(results[i]) > 5:
+            #     continue
+            #
+            # else:
+            if i == "All":
+                plt.plot(results[i], returns, label=i, linestyle ='--')
+            else:
+                plt.plot(results[i], returns, label = i)
 
-
-    print('Running the optimisation.')
-    for i in results:
-        print(i)
-        if i in ['7','6','4']:
-            continue
-
-        else:
-            plt.plot(results[i], returns, label = i)
             plt.legend()
             plt.title('Mean-Robust CVaR Efficient Frontiers')
             plt.ylabel('Return')
             plt.xlabel('Conditional Value-at-Risk')
 
+    if to_save == 'yes':
 
+        # Save the plot
 
+        # Save the data dictionary
+        json_file = json.dumps(dict)
+        f = open(os.getcwd() + 'results/'+  folder + "/efficient_frontier_dict.json", "w")
+        f.write(json_file)
+        f.close()
 
-        results[i] = [j.solution.get_objective_value() for j in results[i]]
-
-
-    for
-    plt.plot(results)
+    return results
