@@ -88,9 +88,9 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
             #
             # else:
             if i == "All":
-                plt.plot(results[i], returns, label=i, linestyle ='--')
+                plt.plot(results[i], returns, label='Min-max with %s trees' %len(test_dict), linestyle ='--')
             else:
-                plt.plot(results[i], returns, label = i)
+                plt.plot(results[i], returns, label ='Tree %s' %i)
 
             plt.legend()
             plt.title('Mean-Robust CVaR Efficient Frontiers')
@@ -100,6 +100,7 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
     if to_save == 'yes':
 
         # Save the plot
+        plt.savefig(os.getcwd() + '/results/'+ folder + '/mean_robust_cvar_efficient_frontier.pdf')
 
         # Save the data dictionary
         json_file = json.dumps(results)
@@ -108,5 +109,3 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
         f.close()
 
     return results
-
-results_w_bounds = results
