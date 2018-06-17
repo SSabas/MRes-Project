@@ -37,7 +37,7 @@ import bs4 as bs
 def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_source='morningstar',
                           start_date= '1980-01-01', end_date='2018-01-01', price_point='Close',
                           random='no', number=10, random_seed=500, to_plot='yes', to_save='no',
-                          from_file='yes', frequency='daily'):
+                          from_file='yes', frequency='daily', folder=''):
 
     # Choose random stocks and pull from database
     if from_file == 'yes':
@@ -88,7 +88,7 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
 
     if frequency == 'weekly':
 
-        price_series = price_series.resample('W', convention='start').first()
+        price_series = price_series.resample('W-MON').first()#, convention='start').first()
 
     if to_plot == 'yes':
 
@@ -99,7 +99,7 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
 
     if to_save == 'yes':
 
-        price_series.to_csv(os.getcwd() + '/data/morningstar/data_for_%s_stocks.csv' %(str(len(instruments))))
+        price_series.to_csv(os.getcwd() + '/results/' + folder + '/stock_data.csv')
 
     return price_series
 
