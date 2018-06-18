@@ -24,6 +24,9 @@ Date:
 import matplotlib.pyplot as plt
 import os
 import json
+import sys
+from datetime import datetime, timedelta
+import math
 
 # Add the python scripts folder to system path
 sys.path.insert(0, os.getcwd() + '/code/python')
@@ -32,9 +35,10 @@ from D_CPLEX_Solver import *
 
 # ----------------------------- EVALUATE THE OPTIMISER ---------------------------- #
 
+# Creates an efficient Return-CVaR frontier
 def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_portfolio,
                        sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                       beta=0.99, initial_wealth=1, to_plot='yes', folder=folder, solver='qurobi',
+                       beta=0.99, initial_wealth=1, to_plot='yes', folder='', solver='qurobi',
                        to_save='yes'):
 
     # Create dictionary of dictionaries for testing and also the results dictionary
@@ -82,7 +86,7 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
 
         print('Running the optimisation.')
         for i in results:
-            print(i)
+            # print(i)
             # if np.max(results[i]) > 5:
             #     continue
             #
@@ -109,3 +113,40 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
         f.close()
 
     return results
+
+
+# Portfolio optimisation
+
+def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, days_to_forecast=None,
+                           frequency='daily', to_save='yes', folder=None, benchmark='yes'):
+
+    # If days_to_forecast is not present, use start and end date to get how many days to forecast
+    if days_to_forecast is None:
+
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        days_to_forecast = (end_date - start_date + timedelta(days=1)).days # to count the first day  too
+
+    # If using weekly data, change the days_to_forecast to weeks
+    if frequency == 'weekly':
+        days_to_forecast = math.floor(days_to_forecast/7)
+
+    # Check whether there is enough back-testing/fitting data to accommodate the look_back_period an days_to_forecast
+
+    length_stock_data = len(stock_data)
+
+    if length_stock_data < (days_to_forecast + look_back_period):
+
+        raise ValueError('Dataset is too short. The dataset has %s observations, but the specified parameters '
+                         'require %s (look-back period of %s and forecast period of %s).' %(length_stock_data,
+                                                                                 days_to_forecast + look_back_period,
+                                                                                 look_back_period, days_to_forecast))
+    # Iterate over dataset
+    for i in range(days_to_forecast):
+        print(i)
+
+        # Get back-fitting data
+        end_date_back_fitting = end_date - timedelta(days=1)
+        start_date_back_fitting = end_date_back_fitting - timedelta(days=look_back_period)
+
+    stock_data[start_date_back_fitting:end_date_back_fitting]
