@@ -286,6 +286,14 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         output['benchmark_cvar'] = benchmark_cvar
         output['benchmark_portfolio'] = benchmark_returns
 
+    if to_save == 'yes':
+
+        # Save the data dictionary
+        json_file = json.dumps(output)
+        f = open(os.getcwd() + '/results/'+ folder + "/portfolio_optimisation_dict.json", "w")
+        f.write(json_file)
+        f.close()
+
     return output
 
 
