@@ -122,8 +122,8 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
 
 # Portfolio optimisation
 def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=None,
-                           days_to_forecast=None, input_file='moment_estimation',
-                           frequency='daily', benchmark='yes', to_plot = 'yes',
+                           periods_to_forecast=None, input_file='moment_estimation',
+                           frequency='weekly', benchmark='yes', to_plot='yes', to_save='yes',
                            branching=(2, 2, 8, 8), simulations=100000,
                            initial_portfolio=np.repeat(1/len(stock_data.columns), len(stock_data.columns)),
                            nr_scenarios=256, return_target=1.05, sell_bounds=None, buy_bounds=None,
@@ -140,54 +140,62 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         folder = None
 
     # If days_to_forecast is not present, use start and end date to get how many days to forecast
-    if days_to_forecast is None:
+    if periods_to_forecast is None:
 
         # start_date = datetime.strptime(start_date, '%Y-%m-%d')
         # end_date = datetime.strptime(end_date, '%Y-%m-%d')
-        days_to_forecast = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')
-                            + timedelta(days=1)).days # to count the first day  too
+        periods_to_forecast = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')
+                               + timedelta(days=1)).days # to count the first day  too
 
     # If using weekly data, change the days_to_forecast to weeks
     if frequency == 'weekly':
-        days_to_forecast = math.floor(days_to_forecast/7)
         count_iterator = timedelta(days=7)
 
     # Check whether there is enough back-testing/fitting data to accommodate the look_back_period an days_to_forecast
 
     length_stock_data = len(stock_data)
 
-    if length_stock_data < (days_to_forecast + look_back_period):
+    if length_stock_data < (periods_to_forecast + look_back_period):
 
         raise ValueError('Dataset is too short. The dataset has %s observations, but the specified parameters '
                          'require %s (look-back period of %s and forecast period of %s).' %(length_stock_data,
-                                                                                 days_to_forecast + look_back_period,
-                                                                                 look_back_period, days_to_forecast))
+                                                                                            periods_to_forecast
+                                                                                            + look_back_period,
+                                                                                            look_back_period,
+                                                                                            periods_to_forecast))
 
     # Create returns dataset
-    returns_data = stock_data.iloc[-days_to_forecast:]
+    returns_data = stock_data.iloc[-periods_to_forecast:]
     returns_data = returns_data.pct_change() + 1
 
     # Create benchmark dataset
-    benchmark_returns = stock_data.iloc[-days_to_forecast:].pct_change()+1
+    benchmark_returns = stock_data.iloc[-periods_to_forecast:].pct_change()+1
     benchmark_returns.iloc[0, :] = 1/len(instruments)
     benchmark_returns = benchmark_returns.cumprod().sum(1)
 
     # Create an empty dataset for optimised returns
-    optimised_returns = stock_data.copy()[-days_to_forecast:]
+    optimised_returns = stock_data.copy()[-periods_to_forecast:]
     optimised_returns.iloc[:, ] = np.nan
-    optimised_returns.iloc[0, ] = 1/len(instruments)
+    optimised_returns.iloc[0, ] = initial_portfolio
 
     # Set dates to back-testing
-    end_date_back_fitting = stock_data.index[-1] - timedelta(days=days_to_forecast-count_iterator)
-    start_date_back_fitting = end_date_back_fitting - timedelta(days=look_back_period-count_iterator)
-    # stock_data.index[-1] - timedelta(days=look_back_period- 1)
+    if frequency == 'daily':
+        end_date_back_fitting = stock_data.index[-1] - timedelta(days=periods_to_forecast-count_iterator.days)
+        start_date_back_fitting = end_date_back_fitting - timedelta(days=periods_to_forecast-count_iterator.days)
+        # stock_data.index[-1] - timedelta(days=look_back_period- 1)
+
+    else:
+        end_date_back_fitting = stock_data.index[-1] - timedelta(days=periods_to_forecast*7-count_iterator.days)
+        start_date_back_fitting = end_date_back_fitting - timedelta(days=periods_to_forecast*7-count_iterator.days)
+        # stock_data.index[-1] - timedelta(days=look_back_period- 1)
+
 
     # Define output file
     output_file = 'scenario_file'
 
     # Iterate over dataset
-    for i in range(days_to_forecast-1):
-        print('Optimisation iteration number %s (out of %s).' %(i, days_to_forecast-1))
+    for i in range(periods_to_forecast-1):
+        print('Optimisation iteration number %s (out of %s).' %(i, periods_to_forecast-1))
 
         # Iterate over scenario folders
         scenario_folder = folder + '/period_%s' %(i+1)
@@ -222,7 +230,7 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
 
         # Add the weights to the optimised returns dataset
         reweighted_optimal_portfolio = w_0_weights/np.sum(w_0_weights) # Make the portfolio to 1
-        optimised_returns.iloc[i, :] = reweighted_optimal_portfolio/np.sum(optimised_returns.iloc[i, :]) # Reweight over the current value of portfolio
+        optimised_returns.iloc[i, :] = reweighted_optimal_portfolio*np.sum(optimised_returns.iloc[i, :]) # Reweight over the current value of portfolio
 
         # Calculate the portfolio balance for next period
         optimised_returns.iloc[i+1, :] = optimised_returns.iloc[i, :] * returns_data.iloc[i+1, :]
@@ -248,7 +256,25 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         plt.ylabel('Portfolio Value')
         plt.xlabel('Date')
 
-    return optimised_returns
+    if to_save == 'yes':
+
+        # Save the plot
+        plt.savefig(os.getcwd() + '/results/'+ folder + '/optimised_portfolio_analysis.pdf')
+
+        # Save the data
+        optimised_returns.to_csv(os.getcwd() + '/results/' + folder + '/optimised_portfolio_data.csv')
+
+    # Calculate the realised CVaR
+
+    # Get the beta'th percentile of returns
+    # Calculate the average of returns
+
+
+    if benchmark == 'yes':
+        return optimised_returns, benchmark_returns
+
+    else:
+        return optimised_returns
 
 
 
