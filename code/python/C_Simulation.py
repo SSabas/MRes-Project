@@ -82,11 +82,15 @@ def run_cluster(input_file, output_file, folder, samples=10000, scenario_trees=4
         combined = inputs + outputs + simulations
 
         # Run the process
-        subprocess.call('./cluster2 ' + combined, shell=True, cwd=path, timeout=3)
+        subprocess.call('./cluster2 ' + combined, shell=True, cwd=path, timeout=10)
 
-        # Move to appropriate directory
-        os.rename(os.getcwd() + '/code/cpp/cluster2/' + output_file,
-                  os.getcwd() + '/results/' + folder + '/' + output_file + "_%s" %i)
+        # Move to appropriate directory if present
+        if not os.path.exists(os.getcwd() + '/results/' + folder):
+                os.makedirs(os.getcwd() + '/results/' + folder)
+
+        if folder is not None:
+            os.rename(os.getcwd() + '/code/cpp/cluster2/' + output_file,
+                      os.getcwd() + '/results/' + folder + '/' + output_file + "_%s" %i)
 
         # Delay for the random generator to renew for cluster run
         sleep(1.0) # Delay of a second

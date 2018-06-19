@@ -99,6 +99,9 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
 
     if to_save == 'yes':
 
+        if not os.path.exists(os.getcwd() + '/results/' + folder):
+                os.makedirs(os.getcwd() + '/results/' + folder)
+
         price_series.to_csv(os.getcwd() + '/results/' + folder + '/stock_data.csv')
 
     return price_series

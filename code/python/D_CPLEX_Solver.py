@@ -295,6 +295,77 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
 
     return objective_value, w_0_variables, w_0_values # min_wcvar, w_0_solution, w0_asset_weights
 
+    # Return constraint for period t = T
+
+#
+#
+# # Get returns for all scenarios
+# k_returns = {}
+# for k in scenarios_dict:
+#     print(k)
+#
+#     # print(k)
+#     return_constraint_variables = []
+#     return_constraint_parameters = []
+#
+#     for node in final_nodes:
+#         # print(node)
+#         return_constraint_variables.append(
+#             ['w_k' + str(k) + "_" + instrument + "_s" + str(node)[:-1] for instrument in instruments])
+#         return_constraint_parameters.append(
+#             np.array(scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)].T[2:-1].T.astype(float) \
+#                      * float(
+#                 scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)]['cum_probability'])).flatten())
+#
+#     # Flatten the lists
+#     return_constraint_variables = [item for sublist in return_constraint_variables for item in sublist]
+#     return_constraint_parameters = [item for sublist in return_constraint_parameters for item in sublist]
+#
+#     # Put to dataframe and then group by weight (sum it)
+#     # Define the dataframe to be populated
+#     data_dict = {'variables': return_constraint_variables, 'values': return_constraint_parameters}
+#     data_df = pd.DataFrame(data=data_dict)
+#     data_grouped = data_df.groupby(['variables'])['values'].sum()
+#     return_constraint_variables = data_grouped.index
+#     return_constraint_parameters = data_grouped.values
+#
+#     # Get the variable values in the end
+#     print('Getting indices')
+#     indices = [min_wcvar.variables.get_names().index(i) for i in return_constraint_variables]
+#     print('Getting values')
+#     values = [min_wcvar.solution.get_values()[index] for index in indices]
+#
+#     # Get return
+#     k_returns[k] = np.sum(return_constraint_parameters * values)
+
+
+
+# print('Adding period t = T return constraints.')
+# for k in scenarios_dict:
+#     # print(k)
+#     return_constraint_variables = []
+#     return_constraint_parameters = []
+#
+#     for node in final_nodes:
+#         # print(node)
+#         return_constraint_variables.append(
+#             ['w_k' + str(k) + "_" + instrument + "_s" + str(node)[:-1] for instrument in instruments])
+#         return_constraint_parameters.append(
+#             np.array(scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)].T[2:-1].T.astype(float) \
+#                      * float(
+#                 scenarios_dict[str(k)][scenarios_dict[str(k)]['node'] == str(node)]['cum_probability'])).flatten())
+#
+#     # Flatten the lists
+#     return_constraint_variables = [item for sublist in return_constraint_variables for item in sublist]
+#     return_constraint_parameters = [item for sublist in return_constraint_parameters for item in sublist]
+#
+#     # Put to dataframe and then group by weight (sum it)
+#     # Define the dataframe to be populated
+#     data_dict = {'variables': return_constraint_variables, 'values': return_constraint_parameters}
+#     data_df = pd.DataFrame(data=data_dict)
+#     data_grouped = data_df.groupby(['variables'])['values'].sum()
+#     return_constraint_variables = data_grouped.index
+#     return_constraint_parameters = data_grouped.values
 
 #
 # # Implementation of simple CVaR optimiser

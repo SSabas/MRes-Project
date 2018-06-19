@@ -124,17 +124,9 @@ def put_to_cpp_layout(folder, file_name, data, branching=(4, 4, 4)):
 
     # Set path
     path = os.getcwd() + '/code/cpp/cluster2/' + file_name
-    path_backup = os.getcwd() + '/results/' + folder + '/' + file_name
-
-    # Check if the directory already exists
-    if not os.path.exists(os.getcwd() + '/results/' + folder):
-        os.makedirs(os.getcwd() + '/results/' + folder)
 
     # Get means and variances
     mean_matrix, variance_matrix = calculate_moments(data)
-
-    # Save to designated file in cpp folder
-    print('Saving results to %s.' % path_backup)
 
     # Save it in cluster folder to run the simulation programme
     with open(path, "w") as text_file:
@@ -153,22 +145,33 @@ def put_to_cpp_layout(folder, file_name, data, branching=(4, 4, 4)):
         print(" ".join(map(str, branching)), file=text_file)
         print("END", file=text_file)
 
-    # Save a secondary copy to designated folder
-    with open(path_backup, "w") as text_file:
-        print("ASSETS %d" %(data.shape[1]), file=text_file)
-        print("STAGES %d" %(len(branching)), file=text_file)
-        print("COVARIANCE", file=text_file)
-        n = 1
-        for i in variance_matrix:
-            print(" ".join(map(str, i[0:n])), file=text_file)
-            n += 1
-        print("INITIAL", file=text_file)
-        print(" ".join(map(str, np.array(data.tail(1))[0])), file=text_file)
-        print("GROWTH", file=text_file)
-        print(" ".join(map(str, mean_matrix)), file=text_file)
-        print("BRANCHING", file=text_file)
-        print(" ".join(map(str, branching)), file=text_file)
-        print("END", file=text_file)
+    if folder is not None:
+
+        # Check if the directory already exists
+        if not os.path.exists(os.getcwd() + '/results/' + folder):
+            os.makedirs(os.getcwd() + '/results/' + folder)
+
+        path_backup = os.getcwd() + '/results/' + folder + '/' + file_name
+
+        # Save to designated file in backup folder
+        print('Saving results to %s.' % path_backup)
+
+        # Save a secondary copy to designated folder
+        with open(path_backup, "w") as text_file:
+            print("ASSETS %d" %(data.shape[1]), file=text_file)
+            print("STAGES %d" %(len(branching)), file=text_file)
+            print("COVARIANCE", file=text_file)
+            n = 1
+            for i in variance_matrix:
+                print(" ".join(map(str, i[0:n])), file=text_file)
+                n += 1
+            print("INITIAL", file=text_file)
+            print(" ".join(map(str, np.array(data.tail(1))[0])), file=text_file)
+            print("GROWTH", file=text_file)
+            print(" ".join(map(str, mean_matrix)), file=text_file)
+            print("BRANCHING", file=text_file)
+            print(" ".join(map(str, branching)), file=text_file)
+            print("END", file=text_file)
 
 
 #
