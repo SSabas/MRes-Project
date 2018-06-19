@@ -125,7 +125,7 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
                            periods_to_forecast=None, input_file='moment_estimation',
                            frequency='weekly', benchmark='yes', to_plot='yes', to_save='yes',
                            branching=(2, 2, 8, 8), simulations=100000,
-                           initial_portfolio=np.repeat(1/len(stock_data.columns), len(stock_data.columns)),
+                           initial_portfolio=None,
                            nr_scenarios=256, return_target=1.05, sell_bounds=None, buy_bounds=None,
                            weight_bounds=None, cost_to_buy=0.01, cost_to_sell=0.01, beta=0.99, initial_wealth=1,
                            solver='gurobi'):
@@ -136,16 +136,19 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
     # Iterator to loop
     count_iterator = timedelta(days=1)
 
+    if initial_portfolio is None:
+        initial_portfolio = np.repeat(1 / len(stock_data.columns), len(stock_data.columns))
+
     if to_save != 'yes':
         folder = None
 
     # If days_to_forecast is not present, use start and end date to get how many days to forecast
-    if periods_to_forecast is None:
-
-        # start_date = datetime.strptime(start_date, '%Y-%m-%d')
-        # end_date = datetime.strptime(end_date, '%Y-%m-%d')
-        periods_to_forecast = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')
-                               + timedelta(days=1)).days # to count the first day  too
+    # if periods_to_forecast is None:
+    #
+    #     # start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    #     # end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    #     periods_to_forecast = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')
+    #                            + timedelta(days=1)).days # to count the first day  too
 
     # If using weekly data, change the days_to_forecast to weeks
     if frequency == 'weekly':
@@ -180,13 +183,13 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
 
     # Set dates to back-testing
     if frequency == 'daily':
-        end_date_back_fitting = stock_data.index[-1] - timedelta(days=periods_to_forecast-count_iterator.days)
-        start_date_back_fitting = end_date_back_fitting - timedelta(days=periods_to_forecast-count_iterator.days)
+        end_date_back_fitting = stock_data.index[-1] - timedelta(days=periods_to_forecast)
+        start_date_back_fitting = end_date_back_fitting - timedelta(days=look_back_period)
         # stock_data.index[-1] - timedelta(days=look_back_period- 1)
 
     else:
-        end_date_back_fitting = stock_data.index[-1] - timedelta(days=periods_to_forecast*7-count_iterator.days)
-        start_date_back_fitting = end_date_back_fitting - timedelta(days=periods_to_forecast*7-count_iterator.days)
+        end_date_back_fitting = stock_data.index[-1] - timedelta(days=periods_to_forecast*7)
+        start_date_back_fitting = end_date_back_fitting - timedelta(days=look_back_period*7)
         # stock_data.index[-1] - timedelta(days=look_back_period- 1)
 
 
@@ -242,6 +245,10 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         start_date_back_fitting = start_date_back_fitting + count_iterator
         end_date_back_fitting = end_date_back_fitting + count_iterator
 
+    # Create output dictionary
+    output = {}
+    output['optimised_portfolio'] = optimised_returns
+
     if to_plot == 'yes':
 
         # Calculate the cumulative returns
@@ -264,17 +271,22 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         # Save the data
         optimised_returns.to_csv(os.getcwd() + '/results/' + folder + '/optimised_portfolio_data.csv')
 
-    # Calculate the realised CVaR
+    # Calculate the realised CVaR of the optimised portfolio
+    aggregated_portfolio_returns = optimised_returns.sum(1).pct_change()
+    portfolio_var = aggregated_portfolio_returns.quantile(q=1-beta, interpolation='lower')
+    portfolio_cvar = -np.mean(aggregated_portfolio_returns[aggregated_portfolio_returns<=portfolio_var])
+    output['portfolio_cvar'] = portfolio_cvar
 
-    # Get the beta'th percentile of returns
-    # Calculate the average of returns
-
-
+    # Same for benchmark if present
     if benchmark == 'yes':
-        return optimised_returns, benchmark_returns
 
-    else:
-        return optimised_returns
+        aggregated_benchmark_returns = benchmark_returns.pct_change()
+        benchmark_var = aggregated_benchmark_returns.quantile(q=1 - beta, interpolation='lower')
+        benchmark_cvar = -np.mean(aggregated_benchmark_returns[aggregated_benchmark_returns <= benchmark_var])
+        output['benchmark_cvar'] = benchmark_cvar
+        output['benchmark_portfolio'] = benchmark_returns
+
+    return output
 
 
 
