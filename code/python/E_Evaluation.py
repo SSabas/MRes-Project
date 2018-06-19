@@ -249,20 +249,6 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
     output = {}
     output['optimised_portfolio'] = optimised_returns
 
-    if to_plot == 'yes':
-
-        # Calculate the cumulative returns
-        data_to_plot = optimised_returns.sum(1)
-        plt.plot(data_to_plot, label='Min-max Optimised Portfolio')
-
-        if benchmark == 'yes':
-            plt.plot(benchmark_returns, label='Equally Weighted Portfolio', linestyle='--')
-
-        plt.legend()
-        plt.title('Performance Comparison')
-        plt.ylabel('Portfolio Value')
-        plt.xlabel('Date')
-
     if to_save == 'yes':
 
         # Save the plot
@@ -286,13 +272,19 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         output['benchmark_cvar'] = benchmark_cvar
         output['benchmark_portfolio'] = benchmark_returns
 
-    if to_save == 'yes':
+    if to_plot == 'yes':
 
-        # Save the data dictionary
-        json_file = json.dumps(output)
-        f = open(os.getcwd() + '/results/'+ folder + "/portfolio_optimisation_dict.json", "w")
-        f.write(json_file)
-        f.close()
+        # Calculate the cumulative returns
+        data_to_plot = optimised_returns.sum(1)
+        plt.plot(data_to_plot, label='Min-max Optimised Portfolio (CVaR = %.3f)' %output['portfolio_cvar'])
+
+        if benchmark == 'yes':
+            plt.plot(benchmark_returns, label='Equally Weighted Portfolio (CVaR = %.3f)' %output['benchmark_cvar'], linestyle='--')
+
+        plt.legend()
+        plt.title('Performance Comparison')
+        plt.ylabel('Portfolio Value')
+        plt.xlabel('Date')
 
     return output
 

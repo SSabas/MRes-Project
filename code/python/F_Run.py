@@ -119,17 +119,13 @@ stock_data = import_stock_data_api(instruments=instruments, data_source=source,
 #                        to_save=to_save)
 
 # Calculate the optimised portfolio
-optimised_returns, benchmark_returns = portfolio_optimisation(stock_data, look_back_period, start_date, end_date,
-                                                              folder=folder, periods_to_forecast=periods_to_forecast,
-                                                              input_file=input_file, frequency=frequency,
-                                                              benchmark=benchmark, to_plot=to_plot, to_save=to_save,
-                                                              branching=branching, simulations=simulations,
-                                                              initial_portfolio=initial_portfolio,
-                                                              nr_scenarios=nr_scenarios, return_target=return_target,
-                                                              sell_bounds=sell_bounds, buy_bounds=buy_bounds,
-                                                              weight_bounds=weight_bounds, cost_to_buy=cost_to_buy,
-                                                              cost_to_sell=cost_to_sell, beta=beta,
-                                                              initial_wealth=initial_wealth, solver=solver)
+output = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder,
+                                periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
+                                benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
+                                simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
+                                return_target=return_target, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
+                                weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+                                beta=beta, initial_wealth=initial_wealth, solver=solver)
 
 # Save the workspace variables to file
 
