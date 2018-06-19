@@ -27,9 +27,14 @@ import json
 import sys
 from datetime import datetime, timedelta
 import math
+import numpy as np
 
 # Add the python scripts folder to system path
 sys.path.insert(0, os.getcwd() + '/code/python')
+
+from A_Data_Import import *
+from B_Moment_Estimation import *
+from C_Simulation import *
 from D_CPLEX_Solver import *
 
 
@@ -116,20 +121,36 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
 
 
 # Portfolio optimisation
+def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=None,
+                           days_to_forecast=None, input_file='moment_estimation',
+                           frequency='daily', benchmark='yes', to_plot = 'yes',
+                           branching=(2, 2, 8, 8), simulations=100000,
+                           initial_portfolio=np.repeat(1/len(stock_data.columns), len(stock_data.columns)),
+                           nr_scenarios=256, return_target=1.05, sell_bounds=None, buy_bounds=None,
+                           weight_bounds=None, cost_to_buy=0.01, cost_to_sell=0.01, beta=0.99, initial_wealth=1,
+                           solver='gurobi'):
 
-def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, days_to_forecast=None,
-                           frequency='daily', to_save='yes', folder=None, benchmark='yes'):
+    # Infer some metadata from inputs
+    instruments = list(stock_data.columns)
+
+    # Iterator to loop
+    count_iterator = timedelta(days=1)
+
+    if to_save != 'yes':
+        folder = None
 
     # If days_to_forecast is not present, use start and end date to get how many days to forecast
     if days_to_forecast is None:
 
-        start_date = datetime.strptime(start_date, '%Y-%m-%d')
-        end_date = datetime.strptime(end_date, '%Y-%m-%d')
-        days_to_forecast = (end_date - start_date + timedelta(days=1)).days # to count the first day  too
+        # start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        # end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        days_to_forecast = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')
+                            + timedelta(days=1)).days # to count the first day  too
 
     # If using weekly data, change the days_to_forecast to weeks
     if frequency == 'weekly':
         days_to_forecast = math.floor(days_to_forecast/7)
+        count_iterator = timedelta(days=7)
 
     # Check whether there is enough back-testing/fitting data to accommodate the look_back_period an days_to_forecast
 
@@ -141,12 +162,93 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, d
                          'require %s (look-back period of %s and forecast period of %s).' %(length_stock_data,
                                                                                  days_to_forecast + look_back_period,
                                                                                  look_back_period, days_to_forecast))
+
+    # Create returns dataset
+    returns_data = stock_data.iloc[-days_to_forecast:]
+    returns_data = returns_data.pct_change() + 1
+
+    # Create benchmark dataset
+    benchmark_returns = stock_data.iloc[-days_to_forecast:].pct_change()+1
+    benchmark_returns.iloc[0, :] = 1/len(instruments)
+    benchmark_returns = benchmark_returns.cumprod().sum(1)
+
+    # Create an empty dataset for optimised returns
+    optimised_returns = stock_data.copy()[-days_to_forecast:]
+    optimised_returns.iloc[:, ] = np.nan
+    optimised_returns.iloc[0, ] = 1/len(instruments)
+
+    # Set dates to back-testing
+    end_date_back_fitting = stock_data.index[-1] - timedelta(days=days_to_forecast-count_iterator)
+    start_date_back_fitting = end_date_back_fitting - timedelta(days=look_back_period-count_iterator)
+    # stock_data.index[-1] - timedelta(days=look_back_period- 1)
+
+    # Define output file
+    output_file = 'scenario_file'
+
     # Iterate over dataset
-    for i in range(days_to_forecast):
-        print(i)
+    for i in range(days_to_forecast-1):
+        print('Optimisation iteration number %s (out of %s).' %(i, days_to_forecast-1))
+
+        # Iterate over scenario folders
+        scenario_folder = folder + '/period_%s' %(i+1)
 
         # Get back-fitting data
-        end_date_back_fitting = end_date - timedelta(days=1)
-        start_date_back_fitting = end_date_back_fitting - timedelta(days=look_back_period)
+        bs_data = stock_data[start_date_back_fitting:end_date_back_fitting]
 
-    stock_data[start_date_back_fitting:end_date_back_fitting]
+        # Run the simulation
+        # Get the moments and save to format for the simulator
+        put_to_cpp_layout(scenario_folder, input_file, bs_data, branching=branching)
+
+        # Run the simulation
+        # clean_cluster() # In case first run
+        # compile_cluster() # Gives some errors, but still works
+        run_cluster(input_file, output_file, folder=scenario_folder, samples=simulations, scenario_trees=nr_scenarios)
+
+        # Read the output
+        scenarios_dict = read_cluster_output(output_file, scenario_folder, scenario_trees=nr_scenarios, asset_names=instruments)
+
+        # Get the final cumulative probabilities
+        scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
+
+        # Run the optimisation
+        wcvar, variables, w_0_weights = robust_portfolio_optimisation(scenarios_dict, instruments, branching,
+                                                                      initial_portfolio, sell_bounds, buy_bounds,
+                                                                      weight_bounds, cost_to_buy=cost_to_buy,
+                                                                      cost_to_sell=cost_to_sell, beta=beta,
+                                                                      initial_wealth=initial_wealth,
+                                                                      return_target=return_target,
+                                                                      to_save='yes', folder=scenario_folder,
+                                                                      solver=solver)
+
+        # Add the weights to the optimised returns dataset
+        reweighted_optimal_portfolio = w_0_weights/np.sum(w_0_weights) # Make the portfolio to 1
+        optimised_returns.iloc[i, :] = reweighted_optimal_portfolio/np.sum(optimised_returns.iloc[i, :]) # Reweight over the current value of portfolio
+
+        # Calculate the portfolio balance for next period
+        optimised_returns.iloc[i+1, :] = optimised_returns.iloc[i, :] * returns_data.iloc[i+1, :]
+
+        # Reset initial portfolio value to current portfolio (normalised to 1 for convenience)
+        initial_portfolio = np.array(optimised_returns.iloc[i+1, :] / np.sum(optimised_returns.iloc[i+1, :]))
+
+        # Move dates forward
+        start_date_back_fitting = start_date_back_fitting + count_iterator
+        end_date_back_fitting = end_date_back_fitting + count_iterator
+
+    if to_plot == 'yes':
+
+        # Calculate the cumulative returns
+        data_to_plot = optimised_returns.sum(1)
+        plt.plot(data_to_plot, label='Min-max Optimised Portfolio')
+
+        if benchmark == 'yes':
+            plt.plot(benchmark_returns, label='Equally Weighted Portfolio', linestyle='--')
+
+        plt.legend()
+        plt.title('Performance Comparison')
+        plt.ylabel('Portfolio Value')
+        plt.xlabel('Date')
+
+    return optimised_returns
+
+
+
