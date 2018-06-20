@@ -41,10 +41,10 @@ from D_CPLEX_Solver import *
 # ----------------------------- EVALUATE THE OPTIMISER ---------------------------- #
 
 # Creates an efficient Return-CVaR frontier
-def efficient_frontier(stock_data, returns, instruments, branching, initial_portfolio, simulations=100000,
-                       nr_scenarios = 4, sell_bounds=None, buy_bounds=None, weight_bounds=None, cost_to_buy=0.01,
+def efficient_frontier(stock_data, branching, initial_portfolio, simulations=100000, return_points=5,
+                       nr_scenarios=4, sell_bounds=None, buy_bounds=None, weight_bounds=None, cost_to_buy=0.01,
                        cost_to_sell=0.01, beta=0.99, initial_wealth=1, to_plot='yes', folder='', solver='qurobi',
-                       to_save='yes'):
+                       to_save='yes', input_file='moment_estimation'):
 
 
     # Infer some metadata from inputs
@@ -65,6 +65,21 @@ def efficient_frontier(stock_data, returns, instruments, branching, initial_port
 
     # Get the final cumulative probabilities
     scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
+
+    # Get minimum return
+    min_return = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds,
+                                               buy_bounds, weight_bounds, cost_to_buy=cost_to_buy,
+                                               cost_to_sell=cost_to_sell,
+                                               beta=beta, initial_wealth=initial_wealth, to_save='no', folder=folder,
+                                               solver='cplex', wcvar_minimizer='yes')  # Use CPLEX for minimization
+
+    # Get maximum return
+    max_return = return_maximisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds, buy_bounds,
+                                     weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell, beta=beta,
+                                     initial_wealth=initial_wealth, folder=folder, solver='cplex')
+
+    # Construct return sequence
+    returns = np.linspace(min_return['return'], max(max_return.values()), return_points)
 
     # Create dictionary of dictionaries for testing and also the results dictionary
     test_dict = {}
