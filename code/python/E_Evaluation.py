@@ -41,10 +41,30 @@ from D_CPLEX_Solver import *
 # ----------------------------- EVALUATE THE OPTIMISER ---------------------------- #
 
 # Creates an efficient Return-CVaR frontier
-def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_portfolio,
-                       sell_bounds, buy_bounds, weight_bounds, cost_to_buy=0.01, cost_to_sell=0.01,
-                       beta=0.99, initial_wealth=1, to_plot='yes', folder='', solver='qurobi',
+def efficient_frontier(stock_data, returns, instruments, branching, initial_portfolio, simulations=100000,
+                       nr_scenarios = 4, sell_bounds=None, buy_bounds=None, weight_bounds=None, cost_to_buy=0.01,
+                       cost_to_sell=0.01, beta=0.99, initial_wealth=1, to_plot='yes', folder='', solver='qurobi',
                        to_save='yes'):
+
+
+    # Infer some metadata from inputs
+    instruments = list(stock_data.columns)
+
+    # Define output file
+    output_file = 'scenario_file'
+
+    # Get the moments and save to format for the simulator
+    put_to_cpp_layout(folder, input_file, stock_data, branching=branching)
+
+    # Run the simulation
+    run_cluster(input_file, output_file, folder=folder, samples=simulations, scenario_trees=nr_scenarios)
+
+    # Read the output
+    scenarios_dict = read_cluster_output(output_file, folder, scenario_trees=nr_scenarios,
+                                         asset_names=instruments)
+
+    # Get the final cumulative probabilities
+    scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
 
     # Create dictionary of dictionaries for testing and also the results dictionary
     test_dict = {}
@@ -70,7 +90,7 @@ def efficient_frontier(scenarios_dict, returns, instruments, branching, initial_
                                                                        weight_bounds, cost_to_buy=cost_to_buy,
                                                                        cost_to_sell=cost_to_sell, beta=beta,
                                                                        initial_wealth=initial_wealth, return_target=i,
-                                                                       folder=folder, solver = solver)
+                                                                       folder=folder, solver=solver)
         results['All'].append(answer)#.solution.get_objective_value())
 
         # Run each tree separately
