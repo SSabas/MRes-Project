@@ -41,8 +41,8 @@ from E_Evaluation import *
 input_file = 'moment_estimations'
 output_file = 'scenario_tree'
 simulations = 100000
-nr_scenarios = 4
-branching = (2, 2, 8, 8)
+nr_scenarios = 2
+branching = (2, 4, 8, 8)
 instruments_NYSE = ['KO', 'MSFT', 'IBM', 'AXP', 'PG', 'DIS', 'INTC', 'FDX', 'ADM', 'MAT']
 instruments_FTSE = ['HSBC', 'VOD', 'BP', 'GSK', 'AZN', 'RIO', 'BG', 'TSCO', 'BT', 'PRU']
 instruments = instruments_NYSE #+ instruments_FTSE
@@ -64,7 +64,9 @@ look_back_period = 50
 input_file = 'moment_estimation'
 benchmark = 'yes'
 periods_to_forecast = 5
-folder = 'portfolio_optimisation_%s_weeks' %(periods_to_forecast)
+folder_portfolio = 'portfolio_optimisation_%s_weeks' %(periods_to_forecast)
+folder_ef = 'efficient_frontier_%s_scenarios_TEST' %(nr_scenarios)
+return_points = 5
 
 # Bounds for optimisation
 sell_bounds = [[0.0], [0.2]]
@@ -74,52 +76,65 @@ weight_bounds = [[0.0], [1.0]]
 # Improves readability (extends)
 pd.set_option('display.max_columns', 10)
 
-# Specify testing parameters
-returns = np.linspace(1.02, 1.10, 20)
-
 # -------------------- EXECUTING C++ CODE THROUGH PYTHON ----------------------------- #
 
 # Get the data
 stock_data = import_stock_data_api(instruments=instruments, data_source=source,
                                    start_date=start_date, end_date=end_date, price_point=price_point,
-                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder,
+                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_ef,
                                    frequency=frequency)  # Takes c. 20 secs to query
 
-# Test exponential fit for a single stock
+# # Test exponential fit for a single stock
 # residuals, parameters = exponential_growth(stock_data['VOD'], to_plot=to_plot)
-
-# Test moment-calculation
+#
+# # Test moment-calculation
 # means, variances = calculate_moments(stock_data)
-
-# Get the moments and save to format for the simulator
-# put_to_cpp_layout(folder, input_file, stock_data, branching=branching)
-
-# Run the simulation
-# clean_cluster() # In case first run
-# compile_cluster() # Gives some errors, but still works
-# run_cluster(input_file, output_file, folder, samples=simulations, scenario_trees=nr_scenarios)
-
-# Read the output
-# scenarios_dict = read_cluster_output(output_file, folder, scenario_trees=nr_scenarios, asset_names=instruments)
-
-# Get the final cumulative probabilities
+#
+# # Get the moments and save to format for the simulator
+# put_to_cpp_layout(folder_ef, input_file, stock_data, branching=branching)
+#
+# # Run the simulation
+# # clean_cluster() # In case first run
+# # compile_cluster() # Gives some errors, but still works
+# run_cluster(input_file, output_file, folder_ef, samples=simulations, scenario_trees=nr_scenarios)
+#
+# # Read the output
+# scenarios_dict = read_cluster_output(output_file, folder_ef, scenario_trees=nr_scenarios, asset_names=instruments)
+#
+# # Get the final cumulative probabilities
 # scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
-
-# Plot the simulation output for sense-checking
+#
+# # Plot the simulation output for sense-checking
 # output = {}
 # output_cum = {}
 # for i in instruments:
 #     print(i)
 #     output[i], output_cum[i] = plot_cluster_output(stock_data, i, scenarios_dict['1'], branching, to_plot='yes')
+#
+# # Get minimum return
+# min_return = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds,
+#                                            buy_bounds, weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+#                                            beta=beta, initial_wealth=initial_wealth, to_save='no', folder=folder_ef,
+#                                            solver='cplex', wcvar_minimizer='yes') # Use CPLEX for minimization
+#
+# # Get maximum return
+# max_return = return_maximisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds, buy_bounds,
+#                                  weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell, beta=beta,
+#                                  initial_wealth=initial_wealth, folder=folder_ef, solver='gurobi')
+#
+# # Construct return sequence
+# returns = np.linspace(min_return['return'], max(max_return.values()), 20)
 
 # Create an efficient frontier
-# ef_wcvars = efficient_frontier(scenarios_dict, returns, instruments, branching, initial_portfolio,
-#                        sell_bounds, buy_bounds, weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
-#                        beta=beta, initial_wealth=initial_wealth, to_plot=to_plot, folder=folder, solver=solver,
-#                        to_save=to_save)
+ef_wcvars = efficient_frontier(stock_data, branching, initial_portfolio, simulations=simulations,
+                               return_points=return_points,
+                               nr_scenarios=nr_scenarios, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
+                               weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+                               beta=beta, initial_wealth=initial_wealth, to_plot=to_plot, folder=folder_ef, solver=solver,
+                               to_save=to_save)
 
 # Calculate the optimised portfolio
-output = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder,
+output = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder_portfolio,
                                 periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
                                 benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
                                 simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
