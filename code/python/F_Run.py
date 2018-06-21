@@ -41,8 +41,8 @@ from E_Evaluation import *
 input_file = 'moment_estimations'
 output_file = 'scenario_tree'
 simulations = 100000
-nr_scenarios = 2
-branching = (2, 4, 8, 8)
+nr_scenarios = 4
+branching = (2, 2, 8, 8)
 instruments_NYSE = ['KO', 'MSFT', 'IBM', 'AXP', 'PG', 'DIS', 'INTC', 'FDX', 'ADM', 'MAT']
 instruments_FTSE = ['HSBC', 'VOD', 'BP', 'GSK', 'AZN', 'RIO', 'BG', 'TSCO', 'BT', 'PRU']
 instruments = instruments_NYSE #+ instruments_FTSE
@@ -63,7 +63,8 @@ frequency = 'weekly'
 look_back_period = 50
 input_file = 'moment_estimation'
 benchmark = 'yes'
-periods_to_forecast = 5
+periods_to_forecast = 250
+folder_portfolio_multi = 'portfolio_optimisation_%s_weeks_multi2' %(periods_to_forecast)
 folder_portfolio = 'portfolio_optimisation_%s_weeks' %(periods_to_forecast)
 folder_ef = 'efficient_frontier_%s_scenarios_TEST' %(nr_scenarios)
 return_points = 5
@@ -81,7 +82,7 @@ pd.set_option('display.max_columns', 10)
 # Get the data
 stock_data = import_stock_data_api(instruments=instruments, data_source=source,
                                    start_date=start_date, end_date=end_date, price_point=price_point,
-                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_ef,
+                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_portfolio,
                                    frequency=frequency)  # Takes c. 20 secs to query
 
 # # Test exponential fit for a single stock
@@ -134,7 +135,7 @@ ef_wcvars = efficient_frontier(stock_data, branching, initial_portfolio, simulat
                                to_save=to_save)
 
 # Calculate the optimised portfolio
-output = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder_portfolio,
+output = portfolio_optimisation(stock_data, look_back_period, folder=folder_portfolio,
                                 periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
                                 benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
                                 simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
@@ -142,6 +143,81 @@ output = portfolio_optimisation(stock_data, look_back_period, start_date, end_da
                                 weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
                                 beta=beta, initial_wealth=initial_wealth, solver=solver)
 
+# Run the portfolio optimisation multiple times
+output_dict = portfolio_optimisation_variance_testing(stock_data, look_back_period, folder=folder_portfolio_multi,
+                                                      periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
+                                                      benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
+                                                      simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
+                                                      return_target=return_target, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
+                                                      weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+                                                      beta=beta, initial_wealth=initial_wealth, solver=solver, iterations=4)
+
+
+
+# # Do 4 runs for optimising portfolio
+# folder_portfolio = folder_portfolio + '/test_1'
+# output = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder_portfolio,
+#                                 periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
+#                                 benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
+#                                 simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
+#                                 return_target=return_target, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
+#                                 weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+#                                 beta=beta, initial_wealth=initial_wealth, solver=solver)
+#
+# output_dict = {}
+# output_dict['1'] = output
+# folder_portfolio = 'portfolio_optimisation_%s_weeks_multi' %(periods_to_forecast)
+# for i in range(2,5):
+#     print(i)
+#     folder = folder_portfolio + '/test_%s' %i
+#     print(folder)
+#     output_dict[str(i)] = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder,
+#                                     periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
+#                                     benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
+#                                     simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
+#                                     return_target=return_target, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
+#                                     weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+#                                     beta=beta, initial_wealth=initial_wealth, solver=solver)
+
+# Plot the results in coherent way.
+
+# output_dict = {}
+# for i in range(1, 5):
+#     print(i)
+#     folder = folder_portfolio+ '_multitest/test_%s' %i
+#     output_dict[str(i)] = portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=folder,
+#                                 periods_to_forecast=periods_to_forecast, input_file=input_file, frequency=frequency,
+#                                 benchmark=benchmark, to_plot=to_plot, to_save=to_save, branching=branching,
+#                                 simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
+#                                 return_target=return_target, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
+#                                 weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+#                                 beta=beta, initial_wealth=initial_wealth, solver=solver)
+
+
+
 # Save the workspace variables to file
 
 
+# Plot area plot for weights
+output = pd.read_csv(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_data.csv',
+                     index_col=0, parse_dates=True)
+output.plot.area()
+plt.title('Min-Max CVaR Optimised Portfolio Weights')
+plt.ylabel('Portfolio Value')
+plt.xlabel('Date')
+plt.savefig(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_weights.pdf')
+
+df = output.divide(output.sum(axis=1), axis=0)
+df.plot.area()
+plt.title('Min-Max CVaR Optimised Portfolio Weights (Normalised)')
+plt.ylabel('Portfolio Value')
+plt.xlabel('Date')
+plt.savefig(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_weights_normalised.pdf')
+
+
+ax = output.plot(x=np.array(*output.index), y=output, kind='area', stacked=True, title='100 % stacked area chart')
+
+ax.set_ylabel('Percent (%)')
+ax.margins(0, 0) # Set margins to avoid "whitespace"
+
+plt.show()
