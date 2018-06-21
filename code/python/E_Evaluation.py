@@ -156,7 +156,7 @@ def efficient_frontier(stock_data, branching, initial_portfolio, simulations=100
 
 
 # Portfolio optimisation
-def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, folder=None,
+def portfolio_optimisation(stock_data, look_back_period, folder=None,
                            periods_to_forecast=None, input_file='moment_estimation',
                            frequency='weekly', benchmark='yes', to_plot='yes', to_save='yes',
                            branching=(2, 2, 8, 8), simulations=100000,
@@ -306,17 +306,31 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         plt.plot(data_to_plot, label='Min-max Optimised Portfolio (CVaR = %.3f)' %output['portfolio_cvar'])
 
         if benchmark == 'yes':
-            plt.plot(benchmark_returns, label='Equally Weighted Portfolio (CVaR = %.3f)' %output['benchmark_cvar'], linestyle='--')
+            plt.plot(benchmark_returns, label='Equally Weighted Portfolio (CVaR = %.3f)' %output['benchmark_cvar'],
+                     linestyle='--')
 
         plt.legend()
         plt.title('Performance Comparison')
         plt.ylabel('Portfolio Value')
         plt.xlabel('Date')
 
-    if to_save == 'yes':
+        if to_save == 'yes':
 
-        # Save the plot
-        plt.savefig(os.getcwd() + '/results/'+ folder + '/optimised_portfolio_analysis.pdf')
+            # Save the plot
+            plt.savefig(os.getcwd() + '/results/' + folder + '/optimised_portfolio_analysis.pdf')
+
+        # Create plot of portfolio weights
+        optimised_returns.plot.area()
+        plt.title('Min-Max CVaR Optimised Portfolio Weights')
+        plt.ylabel('Portfolio Value')
+        plt.xlabel('Date')
+
+        if to_save == 'yes':
+
+            # Save the plot
+            plt.savefig(os.getcwd() + '/results/' + folder + '/optimised_portfolio_weights.pdf')
+
+    if to_save == 'yes':
 
         # Save the data
         optimised_returns.to_csv(os.getcwd() + '/results/' + folder + '/optimised_portfolio_data.csv')
@@ -324,4 +338,67 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
     return output
 
 
+# Function to test the variance of the portfolio optimisation framework
+def portfolio_optimisation_variance_testing(stock_data, look_back_period, folder=None,
+                                            periods_to_forecast=None, input_file='moment_estimation',
+                                            frequency='weekly', benchmark='yes', to_plot='yes', to_save='yes',
+                                            branching=(2, 2, 8, 8), simulations=100000, initial_portfolio=None,
+                                            nr_scenarios=256, return_target=1.05, sell_bounds=None, buy_bounds=None,
+                                            weight_bounds=None, cost_to_buy=0.01, cost_to_sell=0.01, beta=0.99,
+                                            initial_wealth=1, solver='gurobi', iterations=4):
+
+    # Create an output dictionary
+    output_dict = {}
+
+    # Run the iterations
+    for i in (1, iterations+1):
+        folder_portfolio = folder + '/test_%s' %i
+        print('Iteration number %s.' %i)
+        output_dict[str(i)] = portfolio_optimisation(stock_data, look_back_period, folder=folder_portfolio,
+                                                     periods_to_forecast=periods_to_forecast, input_file=input_file,
+                                                     frequency=frequency, benchmark=benchmark, to_plot='no',
+                                                     to_save='yes', branching=branching, simulations=simulations,
+                                                     initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
+                                                     return_target=return_target, sell_bounds=sell_bounds,
+                                                     buy_bounds=buy_bounds, weight_bounds=weight_bounds,
+                                                     cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell, beta=beta,
+                                                     initial_wealth=initial_wealth, solver=solver)
+
+    # Plot the results and save the file
+    if to_plot == 'yes':
+
+        for j in output_dict:
+
+            # Get the data
+            data_to_plot = output_dict[j]
+
+            # Calculate the cumulative returns
+            optimised_portfolio = data_to_plot['optimised_portfolio'].sum(1)
+
+            # Plot
+            plt.plot(optimised_portfolio, label='Min-max Optimised Portfolio (CVaR = %.3f) (Sample %s)'
+                                         % (data_to_plot['portfolio_cvar'], j))
+
+        if benchmark == 'yes':
+
+            # Get the data
+            data_to_plot = output_dict[j]
+
+            # Calculate the cumulative returns
+            benchmark_portfolio = data_to_plot['benchmark_portfolio']
+
+            plt.plot(benchmark_portfolio, label='Equally Weighted Portfolio (CVaR = %.3f)' %
+                                                data_to_plot['benchmark_cvar'], linestyle='--')
+
+        plt.legend()
+        plt.title('Performance Comparison')
+        plt.ylabel('Portfolio Value')
+        plt.xlabel('Date')
+
+        if to_save == 'yes':
+
+            # Save the plot
+            plt.savefig(os.getcwd() + '/results/' + folder + '/optimised_portfolio_analysis_all.pdf')
+
+    return output_dict
 
