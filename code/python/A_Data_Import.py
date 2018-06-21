@@ -92,10 +92,12 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
 
     if to_plot == 'yes':
 
+        plt.figure(figsize=(9, 6))
         plt.style.use("seaborn-darkgrid")
         ax = price_series.plot(legend=True, title='Time-series of Stock Prices', colormap='ocean')
         ax.set_xlabel("Date")
         ax.set_ylabel("Adjusted Closing Price ($)")
+        plt.tight_layout()
 
     if to_save == 'yes':
 
@@ -103,6 +105,7 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
                 os.makedirs(os.getcwd() + '/results/' + folder)
 
         price_series.to_csv(os.getcwd() + '/results/' + folder + '/stock_data.csv')
+        plt.savefig(os.getcwd() + '/results/' + folder + '/stock_data.pdf')
 
     return price_series
 

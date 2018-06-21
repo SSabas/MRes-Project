@@ -125,6 +125,7 @@ def efficient_frontier(stock_data, branching, initial_portfolio, simulations=100
     if to_plot == 'yes':
 
         print('Running the optimisation.')
+        plt.figure(figsize=(9, 6))
         for i in results:
             # print(i)
             # if np.max(results[i]) > 5:
@@ -132,11 +133,9 @@ def efficient_frontier(stock_data, branching, initial_portfolio, simulations=100
             #
             # else:
             if i == "All":
-                plt.plot(results[i], returns, label='Min-max with %s trees' %len(test_dict), linestyle ='--',
-                         figsize=(9, 6))
+                plt.plot(results[i], returns, label='Min-max with %s trees' %len(test_dict), linestyle ='--')
             else:
-                plt.plot(results[i], returns, label ='Tree %s' %i,
-                         figsize=(9, 6))
+                plt.plot(results[i], returns, label ='Tree %s' %i)
 
             plt.legend()
             plt.title('Mean-Robust CVaR Efficient Frontiers')
@@ -304,14 +303,13 @@ def portfolio_optimisation(stock_data, look_back_period, folder=None,
 
     if to_plot == 'yes':
 
+        plt.figure(figsize=(9, 6))
         # Calculate the cumulative returns
         data_to_plot = optimised_returns.sum(1)
-        plt.plot(data_to_plot, label='Min-max Optimised Portfolio (CVaR = %.3f)' %output['portfolio_cvar'],
-                 figsize=(9, 6))
+        plt.plot(data_to_plot, label='Min-max Optimised Portfolio (CVaR = %.3f)' %output['portfolio_cvar'])
 
         if benchmark == 'yes':
-            plt.plot(benchmark_returns, label='Equally Weighted Portfolio (CVaR = %.3f)' %output['benchmark_cvar'],
-                     linestyle='--', figsize=(9, 6))
+            plt.plot(benchmark_returns, label='Equally Weighted Portfolio (CVaR = %.3f)' %output['benchmark_cvar'])
 
         plt.legend()
         plt.title('Performance Comparison')
@@ -382,8 +380,7 @@ def portfolio_optimisation_variance_testing(stock_data, look_back_period, folder
             optimised_portfolio = data_to_plot['optimised_portfolio'].sum(1)
 
             # Plot
-            plt.plot(optimised_portfolio, label='Min-max Optimised Portfolio (CVaR = %.3f) (Sample %s)'
-                                         % (data_to_plot['portfolio_cvar'], j), figsize=(9, 6))
+            plt.plot(optimised_portfolio, label=('Min-max Optimised Portfolio (CVaR = %.3f) (Sample %s)' % (data_to_plot['portfolio_cvar'], j)))
 
         if benchmark == 'yes':
 
@@ -394,8 +391,7 @@ def portfolio_optimisation_variance_testing(stock_data, look_back_period, folder
             benchmark_portfolio = data_to_plot['benchmark_portfolio']
 
             plt.plot(benchmark_portfolio, label='Equally Weighted Portfolio (CVaR = %.3f)' %
-                                                data_to_plot['benchmark_cvar'], linestyle='--',
-                     figsize=(9, 6))
+                                                data_to_plot['benchmark_cvar'], linestyle='--')
 
         plt.legend()
         plt.title('Performance Comparison')
