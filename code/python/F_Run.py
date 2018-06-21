@@ -198,26 +198,20 @@ output_dict = portfolio_optimisation_variance_testing(stock_data, look_back_peri
 # Save the workspace variables to file
 
 
-# Plot area plot for weights
-output = pd.read_csv(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_data.csv',
-                     index_col=0, parse_dates=True)
-output.plot.area()
-plt.title('Min-Max CVaR Optimised Portfolio Weights')
-plt.ylabel('Portfolio Value')
-plt.xlabel('Date')
-plt.savefig(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_weights.pdf')
-
-df = output.divide(output.sum(axis=1), axis=0)
-df.plot.area()
-plt.title('Min-Max CVaR Optimised Portfolio Weights (Normalised)')
-plt.ylabel('Portfolio Value')
-plt.xlabel('Date')
-plt.savefig(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_weights_normalised.pdf')
-
-
-ax = output.plot(x=np.array(*output.index), y=output, kind='area', stacked=True, title='100 % stacked area chart')
-
-ax.set_ylabel('Percent (%)')
-ax.margins(0, 0) # Set margins to avoid "whitespace"
-
-plt.show()
+# # Plot area plot for weights
+# output = pd.read_csv(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_data.csv',
+#                      index_col=0, parse_dates=True)
+# output.plot.area(figsize=(9, 6))
+# plt.title('Min-Max CVaR Optimised Portfolio Weights')
+# plt.ylabel('Portfolio Value')
+# plt.xlabel('Date')
+# plt.tight_layout()
+# plt.savefig(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_weights.pdf')
+#
+# df = output.divide(output.sum(axis=1), axis=0)
+# df.plot.area(figsize=(9, 6))
+# plt.title('Min-Max CVaR Optimised Portfolio Weights (Normalised)')
+# plt.ylabel('Portfolio Value')
+# plt.xlabel('Date')
+# plt.tight_layout()
+# plt.savefig(os.getcwd() + '/results/' + folder_portfolio + '/optimised_portfolio_weights_normalised.pdf')
