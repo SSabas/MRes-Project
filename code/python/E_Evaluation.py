@@ -284,14 +284,6 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
     output = {}
     output['optimised_portfolio'] = optimised_returns
 
-    if to_save == 'yes':
-
-        # Save the plot
-        plt.savefig(os.getcwd() + '/results/'+ folder + '/optimised_portfolio_analysis.pdf')
-
-        # Save the data
-        optimised_returns.to_csv(os.getcwd() + '/results/' + folder + '/optimised_portfolio_data.csv')
-
     # Calculate the realised CVaR of the optimised portfolio
     aggregated_portfolio_returns = optimised_returns.sum(1).pct_change()
     portfolio_var = aggregated_portfolio_returns.quantile(q=1-beta, interpolation='lower')
@@ -320,6 +312,14 @@ def portfolio_optimisation(stock_data, look_back_period, start_date, end_date, f
         plt.title('Performance Comparison')
         plt.ylabel('Portfolio Value')
         plt.xlabel('Date')
+
+    if to_save == 'yes':
+
+        # Save the plot
+        plt.savefig(os.getcwd() + '/results/'+ folder + '/optimised_portfolio_analysis.pdf')
+
+        # Save the data
+        optimised_returns.to_csv(os.getcwd() + '/results/' + folder + '/optimised_portfolio_data.csv')
 
     return output
 
