@@ -92,9 +92,8 @@ def import_stock_data_api(instruments=('KO', 'F', 'IBM', 'AXP', 'PG'), data_sour
 
     if to_plot == 'yes':
 
-        plt.figure(figsize=(9, 6))
         plt.style.use("seaborn-darkgrid")
-        ax = price_series.plot(legend=True, title='Time-series of Stock Prices', colormap='ocean')
+        ax = price_series.plot(legend=True, title='Time-series of Stock Prices', colormap='ocean', figsize=(9,6))
         ax.set_xlabel("Date")
         ax.set_ylabel("Adjusted Closing Price ($)")
         plt.tight_layout()
