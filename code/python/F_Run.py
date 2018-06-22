@@ -63,11 +63,12 @@ frequency = 'weekly'
 look_back_period = 50
 input_file = 'moment_estimation'
 benchmark = 'yes'
-periods_to_forecast = 250
-folder_portfolio_multi = 'portfolio_optimisation_%s_weeks_multi2' %(periods_to_forecast)
+periods_to_forecast = 25
+folder_portfolio_multi = 'portfolio_optimisation_%s_weeks_multi' %(periods_to_forecast)
 folder_portfolio = 'portfolio_optimisation_%s_weeks' %(periods_to_forecast)
 folder_ef = 'efficient_frontier_%s_scenarios_TEST' %(nr_scenarios)
 return_points = 5
+iterations = 10
 
 # Bounds for optimisation
 sell_bounds = [[0.0], [0.2]]
@@ -82,7 +83,7 @@ pd.set_option('display.max_columns', 10)
 # Get the data
 stock_data = import_stock_data_api(instruments=instruments, data_source=source,
                                    start_date=start_date, end_date=end_date, price_point=price_point,
-                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_portfolio,
+                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_portfolio_multi,
                                    frequency=frequency)  # Takes c. 20 secs to query
 
 # # Test exponential fit for a single stock
@@ -150,7 +151,7 @@ output_dict = portfolio_optimisation_variance_testing(stock_data, look_back_peri
                                                       simulations=simulations, initial_portfolio=initial_portfolio, nr_scenarios=nr_scenarios,
                                                       return_target=return_target, sell_bounds=sell_bounds, buy_bounds=buy_bounds,
                                                       weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
-                                                      beta=beta, initial_wealth=initial_wealth, solver=solver, iterations=4)
+                                                      beta=beta, initial_wealth=initial_wealth, solver=solver, iterations=iterations)
 
 
 
