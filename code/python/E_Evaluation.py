@@ -355,7 +355,7 @@ def portfolio_optimisation_variance_testing(stock_data, look_back_period, folder
     output_dict = {}
 
     # Run the iterations
-    for i in (1, iterations+1):
+    for i in range(1, iterations+1):
         folder_portfolio = folder + '/test_%s' %i
         print('Iteration number %s.' %i)
         output_dict[str(i)] = portfolio_optimisation(stock_data, look_back_period, folder=folder_portfolio,
@@ -370,6 +370,8 @@ def portfolio_optimisation_variance_testing(stock_data, look_back_period, folder
 
     # Plot the results and save the file
     if to_plot == 'yes':
+
+        plt.figure(figsize=(9, 6))
 
         for j in output_dict:
 
