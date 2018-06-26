@@ -157,6 +157,123 @@ def efficient_frontier(stock_data, branching, initial_portfolio, simulations=100
     return results
 
 
+def efficient_portfolio_variance_testing(stock_data, branching, initial_portfolio, simulations=100000, return_points=5,
+                                         nr_scenarios=4, sell_bounds=None, buy_bounds=None, weight_bounds=None, cost_to_buy=0.01,
+                                         cost_to_sell=0.01, beta=0.99, initial_wealth=1, to_plot='yes', folder='', solver='qurobi',
+                                         to_save='yes', input_file='moment_estimation', min_return=None,
+                                         max_return=None):
+
+    # Infer some metadata from inputs
+    instruments = list(stock_data.columns)
+
+    # Define output file
+    output_file = 'scenario_file'
+
+    # Get the moments and save to format for the simulator
+    put_to_cpp_layout(folder, input_file, stock_data, branching=branching)
+
+    # Run the simulation
+    run_cluster(input_file, output_file, folder=folder, samples=simulations, scenario_trees=nr_scenarios)
+
+    # Read the output
+    scenarios_dict = read_cluster_output(output_file, folder, scenario_trees=nr_scenarios,
+                                         asset_names=instruments)
+
+    # Get the final cumulative probabilities
+    scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
+
+    # Get minimum return
+    if min_return is None:
+        min_return = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds,
+                                                   buy_bounds, weight_bounds, cost_to_buy=cost_to_buy,
+                                                   cost_to_sell=cost_to_sell,
+                                                   beta=beta, initial_wealth=initial_wealth, to_save='no', folder=folder,
+                                                   solver='cplex', wcvar_minimizer='yes')  # Use CPLEX for minimization
+
+    # Get maximum return
+    if max_return is None:
+        max_return = return_maximisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds, buy_bounds,
+                                         weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell, beta=beta,
+                                         initial_wealth=initial_wealth, folder=folder, solver='cplex')
+
+    # Construct return sequence
+    returns = np.linspace(min_return['return'], max(max_return.values()), return_points)
+
+    # Create dictionary of dictionaries for testing and also the results dictionary
+    test_dict = {}
+    results = {}
+    for tree in scenarios_dict:
+        # print(tree)
+        test_dict[tree] = {tree: scenarios_dict[tree]}
+        results[tree] = []
+
+    # Add also the combined output
+    results['All'] = []
+
+    # Iterate over the returns
+    print('Running the optimisation.')
+    for i, j in zip(returns, range(1, len(returns) + 1)):
+        print('Cycle number %s (out of %s).' % (j, len(returns)))
+
+        # Firstly run the full optimiser
+        print('Optimising with full set of trees (%s trees in total) in cycle number %s (out of %s).'
+              % (len(list(scenarios_dict.keys())), j, len(returns)))
+        answer, w_0_weights, variables = robust_portfolio_optimisation(scenarios_dict, instruments, branching,
+                                                                       initial_portfolio, sell_bounds, buy_bounds,
+                                                                       weight_bounds, cost_to_buy=cost_to_buy,
+                                                                       cost_to_sell=cost_to_sell, beta=beta,
+                                                                       initial_wealth=initial_wealth, return_target=i,
+                                                                       folder=folder, solver=solver)
+        results['All'].append(answer)  # .solution.get_objective_value())
+
+        # Run each tree separately
+        for tree in test_dict:
+            print('Optimising with only single tree (tree number %s) in cycle number %s (out of %s).'
+                  % (tree, j, len(returns)))
+            answer, w_0_weights, variables = robust_portfolio_optimisation(test_dict[tree], instruments, branching,
+                                                                           initial_portfolio,
+                                                                           sell_bounds, buy_bounds, weight_bounds,
+                                                                           cost_to_buy=cost_to_buy,
+                                                                           cost_to_sell=cost_to_sell,
+                                                                           beta=beta, initial_wealth=initial_wealth,
+                                                                           return_target=i, folder=folder,
+                                                                           solver=solver)
+            results[tree].append(answer)  # .solution.get_objective_value())
+
+    if to_plot == 'yes':
+
+        print('Running the optimisation.')
+        plt.figure(figsize=(9, 6))
+        for i in results:
+            # print(i)
+            # if np.max(results[i]) > 5:
+            #     continue
+            #
+            # else:
+            if i == "All":
+                plt.plot(results[i], returns, label='Min-max with %s trees' % len(test_dict), linestyle='--')
+            else:
+                plt.plot(results[i], returns, label='Tree %s' % i)
+
+            plt.legend()
+            plt.title('Mean-Robust CVaR Efficient Frontiers')
+            plt.ylabel('Return')
+            plt.xlabel('Conditional Value-at-Risk')
+            plt.tight_layout()
+
+    if to_save == 'yes':
+        # Save the plot
+        plt.savefig(os.getcwd() + '/results/' + folder + '/mean_robust_cvar_efficient_frontier.pdf')
+
+        # Save the data dictionary
+        json_file = json.dumps(results)
+        f = open(os.getcwd() + '/results/' + folder + "/efficient_frontier_dict.json", "w")
+        f.write(json_file)
+        f.close()
+
+    return results
+
+
 # Portfolio optimisation
 def portfolio_optimisation(stock_data, look_back_period, folder=None,
                            periods_to_forecast=None, input_file='moment_estimation',
