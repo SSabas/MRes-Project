@@ -270,7 +270,31 @@ def portfolio_optimisation(stock_data, look_back_period, folder=None,
 
         # Add the weights to the optimised returns dataset
         reweighted_optimal_portfolio = w_0_weights/np.sum(w_0_weights) # Make the portfolio to 1
-        optimised_returns.iloc[i, :] = reweighted_optimal_portfolio*np.sum(optimised_returns.iloc[i, :]) # Reweight over the current value of portfolio
+        previous_weights = optimised_returns.iloc[i, :]
+
+        # Deduct the transaction costs from periods t = 2, ..., T
+        if i != 0:
+
+            # Get all transactions
+            transactions = reweighted_optimal_portfolio * np.sum(optimised_returns.iloc[i, :]) - previous_weights
+
+            # Cost of sells
+            sells = transactions < 0
+            sell_costs = np.sum(np.abs(transactions[sells]) * cost_to_sell)
+
+            # Cost of buys
+            buys = transactions > 0
+            buy_costs = np.sum(np.abs(transactions[buys]) * cost_to_buy)
+
+            # Total cost
+            total_cost = sell_costs + buy_costs
+
+            # Transaction cost adjusted portfolio
+            optimised_returns.iloc[i, :] = reweighted_optimal_portfolio*(np.sum(optimised_returns.iloc[i, :]) - total_cost) # Reweight over the current value of portfolio minus transaction costs
+            # np.sum(np.abs(reweighted_optimal_portfolio * np.sum(optimised_returns.iloc[i, :]) - previous_period_weights))
+
+        else:
+            optimised_returns.iloc[i, :] = reweighted_optimal_portfolio*np.sum(optimised_returns.iloc[i, :]) # Reweight over the current value of portfolio
 
         # Calculate the portfolio balance for next period
         optimised_returns.iloc[i+1, :] = optimised_returns.iloc[i, :] * returns_data.iloc[i+1, :]
