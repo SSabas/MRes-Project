@@ -41,8 +41,8 @@ from E_Evaluation import *
 input_file = 'moment_estimations'
 output_file = 'scenario_tree'
 simulations = 100000
-nr_scenarios = 4
-branching = (2, 2, 8, 8)
+nr_scenarios = 1
+branching = (2, 8, 8, 8)
 instruments_NYSE = ['KO', 'MSFT', 'IBM', 'AXP', 'PG', 'DIS', 'INTC', 'FDX', 'ADM', 'MAT']
 instruments_FTSE = ['HSBC', 'VOD', 'BP', 'GSK', 'AZN', 'RIO', 'BG', 'TSCO', 'BT', 'PRU']
 instruments = instruments_NYSE #+ instruments_FTSE
@@ -64,11 +64,16 @@ look_back_period = 50
 input_file = 'moment_estimation'
 benchmark = 'yes'
 periods_to_forecast = 25
-folder_portfolio_multi = 'portfolio_optimisation_%s_weeks_multi' %(periods_to_forecast)
-folder_portfolio = 'portfolio_optimisation_%s_weeks' %(periods_to_forecast)
-folder_ef = 'efficient_frontier_%s_scenarios_TEST' %(nr_scenarios)
-return_points = 5
-iterations = 10
+return_points = 20
+samples = 10
+min_max_adjustment = 0.8
+folder_portfolio_multi = 'portfolio_optimisation_%s_weeks_multi' % (periods_to_forecast)
+folder_portfolio = 'portfolio_optimisation_%s_weeks' % (periods_to_forecast)
+folder_ef = 'efficient_frontier_%s_scenarios_TEST' % (nr_scenarios)
+folder_cvar_var = 'eff_port_var_test_%s_steps_%s_samples_%s_branching_%s_trees' % (return_points, samples,
+                                                                                   ''.join(str(i) for i in branching),
+                                                                                   nr_scenarios)
+
 
 # Bounds for optimisation
 sell_bounds = [[0.0], [0.2]]
@@ -83,7 +88,7 @@ pd.set_option('display.max_columns', 10)
 # Get the data
 stock_data = import_stock_data_api(instruments=instruments, data_source=source,
                                    start_date=start_date, end_date=end_date, price_point=price_point,
-                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_portfolio_multi,
+                                   to_plot=to_plot, to_save=to_save, from_file='no', folder=folder_cvar_var,
                                    frequency=frequency)  # Takes c. 20 secs to query
 
 # # Test exponential fit for a single stock
@@ -153,7 +158,21 @@ output_dict = portfolio_optimisation_variance_testing(stock_data, look_back_peri
                                                       weight_bounds=weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
                                                       beta=beta, initial_wealth=initial_wealth, solver=solver, iterations=iterations)
 
+# Test the variance of CVaR optimisation
+return_cvar_df = efficient_portfolio_variance_testing(stock_data, branching, initial_portfolio, simulations=simulations,
+                                                      return_points=return_points, nr_scenarios=nr_scenarios,
+                                                      sell_bounds=sell_bounds,
+                                                      buy_bounds=buy_bounds, weight_bounds=weight_bounds,
+                                                      cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell,
+                                                      beta=beta, initial_wealth=initial_wealth, solver=solver,
+                                                      folder=folder_cvar_var,
+                                                      to_plot=to_plot, to_save=to_save,
+                                                      input_file=input_file, min_return=None, max_return=None,
+                                                      samples=samples, min_max_adjustment=min_max_adjustment)
 
+compare_efficient_frontier_variance_tests('eff_port_var_test_20_steps_10_samples_2888_branching_1_trees',
+                                          'eff_port_var_test_20_steps_10_samples_2288_branching_4_trees',
+                                          'eff_port_var_test_20_steps_10_samples_2288_branching_1_trees')
 
 # # Do 4 runs for optimising portfolio
 # folder_portfolio = folder_portfolio + '/test_1'
