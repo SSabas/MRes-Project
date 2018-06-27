@@ -28,6 +28,7 @@ import sys
 from datetime import datetime, timedelta
 import math
 import numpy as np
+import pandas as pd
 
 # Add the python scripts folder to system path
 sys.path.insert(0, os.getcwd() + '/code/python')
@@ -158,118 +159,162 @@ def efficient_frontier(stock_data, branching, initial_portfolio, simulations=100
 
 
 def efficient_portfolio_variance_testing(stock_data, branching, initial_portfolio, simulations=100000, return_points=5,
-                                         nr_scenarios=4, sell_bounds=None, buy_bounds=None, weight_bounds=None, cost_to_buy=0.01,
-                                         cost_to_sell=0.01, beta=0.99, initial_wealth=1, to_plot='yes', folder='', solver='qurobi',
-                                         to_save='yes', input_file='moment_estimation', min_return=None,
-                                         max_return=None):
+                                         nr_scenarios=4, sell_bounds=None, buy_bounds=None, weight_bounds=None,
+                                         cost_to_buy=0.01, cost_to_sell=0.01, beta=0.99, initial_wealth=1,
+                                         to_plot='yes', folder='', solver='qurobi', to_save='yes',
+                                         input_file='moment_estimation', min_return=None, max_return=None, samples=10,
+                                         min_max_adjustment=None):
 
     # Infer some metadata from inputs
     instruments = list(stock_data.columns)
 
-    # Define output file
-    output_file = 'scenario_file'
+    # Set initial portfolio if it is not specified
+    if initial_portfolio is None:
+        initial_portfolio = np.repeat(1 / len(stock_data.columns), len(stock_data.columns))
 
-    # Get the moments and save to format for the simulator
-    put_to_cpp_layout(folder, input_file, stock_data, branching=branching)
+    if min_return is None and max_return is None:
+        print('Infering the minimum and maximum returns from the data')
 
-    # Run the simulation
-    run_cluster(input_file, output_file, folder=folder, samples=simulations, scenario_trees=nr_scenarios)
+        # Define output file
+        output_file = 'scenario_file'
 
-    # Read the output
-    scenarios_dict = read_cluster_output(output_file, folder, scenario_trees=nr_scenarios,
-                                         asset_names=instruments)
+        # Define the folder
+        folder_min_max = folder + '/min_max'
 
-    # Get the final cumulative probabilities
-    scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
+        # Get the moments and save to format for the simulator
+        put_to_cpp_layout(folder_min_max, input_file, stock_data, branching=branching)
 
-    # Get minimum return
-    if min_return is None:
-        min_return = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds,
-                                                   buy_bounds, weight_bounds, cost_to_buy=cost_to_buy,
-                                                   cost_to_sell=cost_to_sell,
-                                                   beta=beta, initial_wealth=initial_wealth, to_save='no', folder=folder,
-                                                   solver='cplex', wcvar_minimizer='yes')  # Use CPLEX for minimization
+        # Run the simulation
+        run_cluster(input_file, output_file, folder=folder_min_max, samples=simulations, scenario_trees=nr_scenarios)
 
-    # Get maximum return
-    if max_return is None:
-        max_return = return_maximisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds, buy_bounds,
-                                         weight_bounds, cost_to_buy=cost_to_buy, cost_to_sell=cost_to_sell, beta=beta,
-                                         initial_wealth=initial_wealth, folder=folder, solver='cplex')
+        # Read the output
+        scenarios_dict = read_cluster_output(output_file, folder_min_max, scenario_trees=nr_scenarios,
+                                             asset_names=instruments)
+
+        # Get the final cumulative probabilities
+        scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
+
+        # Get minimum return
+        if min_return is None:
+            folder_min = folder_min_max + "/min"
+            min_return = robust_portfolio_optimisation(scenarios_dict, instruments, branching, initial_portfolio,
+                                                       sell_bounds, buy_bounds, weight_bounds, cost_to_buy=cost_to_buy,
+                                                       cost_to_sell=cost_to_sell,
+                                                       beta=beta, initial_wealth=initial_wealth, to_save='yes',
+                                                       folder=folder_min, solver='cplex',
+                                                       wcvar_minimizer='yes')  # Use CPLEX for minimization
+            min_return = min_return['return']
+
+        # Get maximum return
+        if max_return is None:
+            folder_max = folder_min_max + "/max"
+            max_return = return_maximisation(scenarios_dict, instruments, branching, initial_portfolio, sell_bounds,
+                                             buy_bounds, weight_bounds, cost_to_buy=cost_to_buy,
+                                             cost_to_sell=cost_to_sell, beta=beta, to_save='yes',
+                                             initial_wealth=initial_wealth, folder=folder_max, solver='cplex')
+            max_return = max(max_return.values())
 
     # Construct return sequence
-    returns = np.linspace(min_return['return'], max(max_return.values()), return_points)
+    if min_max_adjustment is not None:
 
-    # Create dictionary of dictionaries for testing and also the results dictionary
-    test_dict = {}
+        # Calculate new min_return boundary based on the confidence level
+        adjustment = (max_return - min_return)*((1-min_max_adjustment)/2)
+        min_return_adj = min_return + adjustment
+        max_return_adj = max_return - adjustment
+
+    returns = np.linspace(min_return, max_return, return_points)
+    returns = np.round(returns, 3)
+
+    # Create dictionary of dictionaries to store the results
     results = {}
-    for tree in scenarios_dict:
-        # print(tree)
-        test_dict[tree] = {tree: scenarios_dict[tree]}
-        results[tree] = []
-
-    # Add also the combined output
-    results['All'] = []
+    for i in returns:
+        results[i] = []
 
     # Iterate over the returns
     print('Running the optimisation.')
     for i, j in zip(returns, range(1, len(returns) + 1)):
         print('Cycle number %s (out of %s).' % (j, len(returns)))
 
-        # Firstly run the full optimiser
-        print('Optimising with full set of trees (%s trees in total) in cycle number %s (out of %s).'
-              % (len(list(scenarios_dict.keys())), j, len(returns)))
-        answer, w_0_weights, variables = robust_portfolio_optimisation(scenarios_dict, instruments, branching,
-                                                                       initial_portfolio, sell_bounds, buy_bounds,
-                                                                       weight_bounds, cost_to_buy=cost_to_buy,
-                                                                       cost_to_sell=cost_to_sell, beta=beta,
-                                                                       initial_wealth=initial_wealth, return_target=i,
-                                                                       folder=folder, solver=solver)
-        results['All'].append(answer)  # .solution.get_objective_value())
+        # Specify folder
+        folder_returns = folder + '/return_iteration_%s' %j
 
-        # Run each tree separately
-        for tree in test_dict:
-            print('Optimising with only single tree (tree number %s) in cycle number %s (out of %s).'
-                  % (tree, j, len(returns)))
-            answer, w_0_weights, variables = robust_portfolio_optimisation(test_dict[tree], instruments, branching,
-                                                                           initial_portfolio,
-                                                                           sell_bounds, buy_bounds, weight_bounds,
-                                                                           cost_to_buy=cost_to_buy,
-                                                                           cost_to_sell=cost_to_sell,
-                                                                           beta=beta, initial_wealth=initial_wealth,
-                                                                           return_target=i, folder=folder,
-                                                                           solver=solver)
-            results[tree].append(answer)  # .solution.get_objective_value())
+        for sample in range(1, samples+1):
+            print('Sample number %s (out of %s) in return cycle %s (out of %s).' % (sample, samples, j, len(returns)))
 
+            # Specify the folder
+            folder_sample = folder_returns + '/sample_%s' %sample
+
+            # Get the moments and save to format for the simulator
+            put_to_cpp_layout(folder_sample, input_file, stock_data, branching=branching)
+
+            # Run the simulation
+            run_cluster(input_file, output_file, folder=folder_sample, samples=simulations, scenario_trees=nr_scenarios)
+
+            # Read the output
+            scenarios_dict = read_cluster_output(output_file, folder_sample, scenario_trees=nr_scenarios,
+                                                 asset_names=instruments)
+
+            # Get the final cumulative probabilities
+            scenarios_dict = add_cumulative_probabilities(scenarios_dict, branching)
+
+            # Run the optimisation
+            answer, w_0_weights, variables = robust_portfolio_optimisation(scenarios_dict, instruments, branching,
+                                                                           initial_portfolio, sell_bounds, buy_bounds,
+                                                                           weight_bounds, cost_to_buy=cost_to_buy,
+                                                                           cost_to_sell=cost_to_sell, beta=beta,
+                                                                           initial_wealth=initial_wealth, return_target=i,
+                                                                           folder=folder_sample, solver=solver)
+
+            # Store the results
+            results[i].append(answer)
+
+    # Retrieve the result and put to pandas dataframe
+    results_df = pd.DataFrame.from_dict(results)
+
+    # Plot results
     if to_plot == 'yes':
 
-        print('Running the optimisation.')
+        # Boxplot
         plt.figure(figsize=(9, 6))
-        for i in results:
-            # print(i)
-            # if np.max(results[i]) > 5:
-            #     continue
-            #
-            # else:
-            if i == "All":
-                plt.plot(results[i], returns, label='Min-max with %s trees' % len(test_dict), linestyle='--')
-            else:
-                plt.plot(results[i], returns, label='Tree %s' % i)
+        results_df.boxplot()
+        plt.title('Boxplots of CVaR Optimisation (%s Samples per Return Specification)' %samples)
+        plt.xlabel('Return')
+        plt.ylabel('CVaR')
+        plt.tight_layout()
 
-            plt.legend()
-            plt.title('Mean-Robust CVaR Efficient Frontiers')
-            plt.ylabel('Return')
-            plt.xlabel('Conditional Value-at-Risk')
-            plt.tight_layout()
+        if to_save == 'yes':
+            # Save the plot
+            plt.savefig(os.getcwd() + '/results/' + folder + '/boxplot_returns_vs_cvar.pdf')
 
+        # Line plot
+        means = np.mean(results_df, axis=0)
+        lower_95 = results_df.quantile(0.025)
+        upper_95 = results_df.quantile(0.975)
+        lower_80 = results_df.quantile(0.1)
+        upper_80 = results_df.quantile(0.90)
+
+        # Plot the figure
+        plt.figure(figsize=(9, 6))
+        plt.plot(means.index, means, linewidth=1.2, markersize=6, color='green', label='Mean CVaR')
+        plt.fill_between(means.index, upper_80, lower_80,
+                         color='green', alpha=.25, lw=0, label='80% Confidence Interval')
+        plt.fill_between(means.index, upper_95, lower_95,
+                         color='green', alpha=.1, lw=0, label='95% Confidence Interval')
+        plt.title('Boxplots of CVaR Optimisation (%s Samples per Return Specification)' %samples)
+        plt.xlabel('Return')
+        plt.ylabel('CVaR')
+        plt.legend()
+        plt.tight_layout()
+
+        if to_save == 'yes':
+            # Save the plot
+            plt.savefig(os.getcwd() + '/results/' + folder + '/lineplot_returns_vs_cvar.pdf')
+
+
+    # Save results
     if to_save == 'yes':
-        # Save the plot
-        plt.savefig(os.getcwd() + '/results/' + folder + '/mean_robust_cvar_efficient_frontier.pdf')
-
         # Save the data dictionary
-        json_file = json.dumps(results)
-        f = open(os.getcwd() + '/results/' + folder + "/efficient_frontier_dict.json", "w")
-        f.write(json_file)
-        f.close()
+        results_df.to_csv(os.getcwd() + '/results/' + folder + '/returns_vs_cvar_data.csv')
 
     return results
 
