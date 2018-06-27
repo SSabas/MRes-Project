@@ -300,7 +300,7 @@ def efficient_portfolio_variance_testing(stock_data, branching, initial_portfoli
                          color='green', alpha=.25, lw=0, label='80% Confidence Interval')
         plt.fill_between(means.index, upper_95, lower_95,
                          color='green', alpha=.1, lw=0, label='95% Confidence Interval')
-        plt.title('Boxplots of CVaR Optimisation (%s Samples per Return Specification)' %samples)
+        plt.title('Lineplot of CVaR Optimisation (%s Samples per Return Specification)' %samples)
         plt.xlabel('Return')
         plt.ylabel('CVaR')
         plt.legend()
@@ -329,6 +329,42 @@ def efficient_portfolio_variance_testing(stock_data, branching, initial_portfoli
         results_df.to_csv(os.getcwd() + '/results/' + folder + '/returns_vs_cvar_data.csv')
 
     return results
+
+
+def compare_efficient_frontier_variance_tests(*args):
+
+    # Unpack the arguments, that should be folders/paths to the outputs of variance tests
+
+    # Define plot parameters
+    plt.figure(figsize=(9, 6))
+    plt.xlabel('Return')
+    plt.ylabel('CVaR')
+    plt.tight_layout()
+    colors = ['forestgreen', 'royalblue', 'firebrick', 'orange']
+
+    for i in range(0, len(args)):
+        print(i, args[i])
+
+        # Import data
+        results_df = pd.read_csv(os.getcwd() + '/results/' + args[i] + '/returns_vs_cvar_data.csv',
+                                 index_col=0)
+
+        means = np.mean(results_df, axis=0)
+        lower_95 = results_df.quantile(0.025)
+        upper_95 = results_df.quantile(0.975)
+        label_variables = args[i].split('_')
+        label = '%s Branching with %s Scenario Tree(s)' %("-".join(label_variables[8]), label_variables[10])
+
+        # Plot
+        plt.plot(means.index.astype(float), means, linewidth=1.2, markersize=6, color=colors[i], label=label)
+        plt.fill_between(means.index.astype(float), upper_95, lower_95,
+                         color=colors[i], alpha=.25, lw=0)
+        plt.title('CVaR Optimisation Comparison (%s Samples per Return Specification)' % samples)
+
+    plt.legend()
+
+    # Save file
+    plt.savefig(os.getcwd() + '/results/cvar_variance_comparison.pdf')
 
 
 # Portfolio optimisation
