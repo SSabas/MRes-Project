@@ -310,6 +310,18 @@ def efficient_portfolio_variance_testing(stock_data, branching, initial_portfoli
             # Save the plot
             plt.savefig(os.getcwd() + '/results/' + folder + '/lineplot_returns_vs_cvar.pdf')
 
+        # Plot also standard deviations
+        std = np.std(results_df, axis=0)
+        plt.figure(figsize=(9, 6))
+        plt.plot(std.index, std, linewidth=1.2, markersize=6, color='green')
+        plt.title('Standard Deviation of CVaR Optimisation (%s Samples per Return Specification)' %samples)
+        plt.xlabel('Return')
+        plt.ylabel('Standard Deviation of CVaR')
+        plt.tight_layout()
+
+        if to_save == 'yes':
+            # Save the plot
+            plt.savefig(os.getcwd() + '/results/' + folder + '/std_returns_vs_cvar.pdf')
 
     # Save results
     if to_save == 'yes':
