@@ -348,12 +348,24 @@ def robust_portfolio_optimisation(scenarios_dict, instruments, branching, initia
             min_return = np.sum(return_constraint_parameters * values)
             print("The scenario has return of %0.3f." % min_return)
 
+            if to_save == 'yes':
+                print('Writing the LP to file.')
+
+                if not os.path.exists(os.getcwd() + '/results/' + folder):
+                    os.makedirs(os.getcwd() + '/results/' + folder)
+
+                min_wcvar.write(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
+
             return {'wcvar': objective_value, 'return': min_return,
                     'w_0_variables': w_0_variables, 'w_0_values': w_0_values}
 
     # Write to file
     if to_save == 'yes':
         print('Writing the LP to file.')
+
+        if not os.path.exists(os.getcwd() + '/results/' + folder):
+                os.makedirs(os.getcwd() + '/results/' + folder)
+
         min_wcvar.write(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
 
     return objective_value, w_0_variables, w_0_values # min_wcvar, w_0_solution, w0_asset_weights
@@ -585,6 +597,14 @@ def return_maximisation(scenarios_dict, instruments, branching, initial_portfoli
                 w_0_variables = np.nan
 
         results[k] = objective_value
+
+    if to_save == 'yes':
+        print('Writing the LP to file.')
+
+        if not os.path.exists(os.getcwd() + '/results/' + folder):
+            os.makedirs(os.getcwd() + '/results/' + folder)
+
+        max_return.write(os.getcwd() + "/results/" + folder + "/robust_optimisation_programme.lp")
 
     # Get the optimal value of returns
     max_scenario = max(results, key=results.get)
