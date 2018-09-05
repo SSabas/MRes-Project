@@ -1,8 +1,7 @@
 # Imperial/UCL MRes Dissertation Project
 ## Robust Portfolio Optimisation under Uncertainty with Rival Scenario Trees
 
-We consider a robust multi-stage portfolio framework for optimising conditional value at risk (CVaR). During the first-stage, robustness is ensured by considering an ellipsoid uncertainty set for the corresponding expected returns. Subsequent stages are modelled using a robust framework with a (discrete) set of rival scenario trees. The first-stage essentially leads to a semi-infinite optimisation problem that can be simplified using duality to a second-order cone program. The discrete set of rival scenario trees in subsequent stages lead to discrete minimax. 
-For large-scale scenario trees, Benders decomposition is needed. Past backtests with rival scenario trees have consistently yielded favourable results. The project will implement and test the basic model and subsequently consider its variants. 
+We consider a robust multi-stage portfolio framework for optimising conditional value at risk (CVaR). The approach extends the multi-period CVaR optimisation framework to worst-case design with multiple rival return and risk scenarios. The stages are modelled using a discrete set of rival scenario trees and the robustness is ensured by considering the worst-case CVaR, which leads to a discrete minimax programme. The minimax set-up gives a portfolio that is optimal for the worst-case scenario and the performance is guaranteed to improve if the worst-case does not materialise. The project implements and test the basic model and its variants, with particular emphasis on the sensitivity of the optimal portfolio to the scenario tree sampling specifications. Backtesting results based on historical financial data are also presented.
 
 Supervised by Prof. Berc Rustem and Dr. Ruth Misener from the Imperial Department of Computing.
 
